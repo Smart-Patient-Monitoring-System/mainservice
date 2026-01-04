@@ -1,0 +1,30 @@
+package com.example.mainservice.service;
+import com.example.mainservice.dto.DoctorDTO;
+import com.example.mainservice.entity.Doctor;
+import com.example.mainservice.repository.DoctorRepo;
+import lombok.AllArgsConstructor;
+
+@AllArgsConstructor
+public class DoctorService {
+    private final DoctorRepo doctorrepo;
+
+    public Doctor create(DoctorDTO doctor){
+
+        Doctor d=Doctor.builder()
+                .name(doctor.getName())
+                .email(doctor.getEmail())
+                .nicNo(doctor.getNicNo())
+                .doctorRegNo(doctor.getDoctorRegNo())
+                .address(doctor.getAddress())
+                .gender(doctor.getGender())
+                .contactNo(doctor.getContactNo())
+                .hospital(doctor.getHospital())
+                .password(doctor.getPassword())
+                .position(doctor.getPosition())
+                .username(doctor.getUsername())
+                .dateOfBirth(doctor.getDateOfBirth())
+                .build();
+        return  doctorrepo.save(d);
+
+    }
+}
