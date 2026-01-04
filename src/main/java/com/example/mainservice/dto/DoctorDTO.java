@@ -9,6 +9,8 @@ import java.time.LocalDate;
 @Getter
 @Setter
 public class DoctorDTO {
+    private  Long Id;
+
     private String name;
 
     private LocalDate dateOfBirth;

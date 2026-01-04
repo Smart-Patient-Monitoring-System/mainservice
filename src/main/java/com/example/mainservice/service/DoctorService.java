@@ -35,9 +35,10 @@ public class DoctorService {
 
     }
 
-    public List<Doctor> getDetails(){
+    public List<DoctorDTO> getDetails(){
 
-        return doctorrepo.findAll().stream().map(d -> Doctor.builder()
+        return doctorrepo.findAll().stream().map(d -> DoctorDTO.builder()
+                .Id(d.getId())
                 .name(d.getName())
                 .email(d.getEmail())
                 .nicNo(d.getNicNo())
