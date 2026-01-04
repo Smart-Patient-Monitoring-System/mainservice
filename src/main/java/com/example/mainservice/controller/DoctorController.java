@@ -5,6 +5,8 @@ import com.example.mainservice.dto.DoctorDTO;
 import com.example.mainservice.entity.Doctor;
 import com.example.mainservice.service.DoctorService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
 
@@ -27,6 +29,14 @@ public class DoctorController {
         return  doctorservice.getDetails();
     }
 
-
+    @DeleteMapping("/delete/{Id}")
+    public String deleteDoctorByRegistrationNo(@PathVariable Long Id) {
+        try {
+            doctorservice.deleteDoctor(Id);
+            return "deleted successfully!";
+        } catch (RuntimeException e) {
+            return "Delete Failed";
+        }
+    }
 
 }

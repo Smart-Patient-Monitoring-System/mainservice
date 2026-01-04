@@ -52,4 +52,7 @@ public class DoctorService {
                 .username(d.getUsername())
                 .dateOfBirth(d.getDateOfBirth()).build()).toList();
     }
+    public void deleteDoctor(Long Id){
+        doctorrepo.deleteById(Id);
+    }
 }
