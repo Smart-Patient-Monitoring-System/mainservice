@@ -39,4 +39,16 @@ public class DoctorController {
         }
     }
 
+    @PutMapping("/update/{Id}")
+    public ResponseEntity<DoctorDTO> updateDoctorByRegistrationNo(
+            @PathVariable Long Id,
+            @RequestBody DoctorDTO doctorDto) {
+        try {
+            DoctorDTO updatedDoctor = doctorservice.updateDoctor(Id, doctorDto);
+            return ResponseEntity.ok(updatedDoctor);
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+        }
+    }
+
 }

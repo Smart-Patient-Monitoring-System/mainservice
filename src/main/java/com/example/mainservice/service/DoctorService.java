@@ -55,4 +55,45 @@ public class DoctorService {
     public void deleteDoctor(Long Id){
         doctorrepo.deleteById(Id);
     }
+
+    public DoctorDTO updateDoctor(Long Id,DoctorDTO dto){
+        Doctor d = doctorrepo.findById(Id).orElseThrow();
+
+        if(dto.getDoctorRegNo()!=null) d.setDoctorRegNo(dto.getDoctorRegNo());
+        if(dto.getEmail()!=null) d.setEmail(dto.getEmail());
+        if(dto.getDateOfBirth()!=null) d.setDateOfBirth(dto.getDateOfBirth());
+        if(dto.getContactNo()!=null) d.setContactNo(dto.getContactNo());
+        if(dto.getAddress()!=null) d.setAddress(dto.getAddress());
+        if(dto.getGender()!=null) d.setGender(dto.getGender());
+        if(dto.getHospital()!=null) d.setHospital(dto.getHospital());
+        if(dto.getName()!=null) d.setName(dto.getName());
+        if(dto.getNicNo()!=null) d.setNicNo(dto.getNicNo());
+        if(dto.getPassword()!=null) d.setPassword(dto.getPassword());
+        if(dto.getPosition()!=null) d.setPosition(dto.getPosition());
+        if(dto.getUsername()!=null) d.setUsername(dto.getUsername());
+
+        Doctor updatedDoctor = doctorrepo.save(d);
+        return convertToDTO(updatedDoctor);
+
+
+    }
+
+    private DoctorDTO convertToDTO(Doctor doctor) {
+        DoctorDTO dto = new DoctorDTO();
+        dto.setId(doctor.getId());
+        dto.setDoctorRegNo(doctor.getDoctorRegNo());
+        dto.setName(doctor.getName());
+        dto.setEmail(doctor.getEmail());
+        dto.setDateOfBirth(doctor.getDateOfBirth());
+        dto.setContactNo(doctor.getContactNo());
+        dto.setAddress(doctor.getAddress());
+        dto.setGender(doctor.getGender());
+        dto.setHospital(doctor.getHospital());
+        dto.setNicNo(doctor.getNicNo());
+        dto.setPassword(doctor.getPassword());
+        dto.setPosition(doctor.getPosition());
+        dto.setUsername(doctor.getUsername());
+
+        return dto;
+    }
 }
