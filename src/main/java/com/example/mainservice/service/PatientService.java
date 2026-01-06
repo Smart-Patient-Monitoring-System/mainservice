@@ -7,6 +7,7 @@ import com.example.mainservice.entity.Patient;
 import com.example.mainservice.repository.PatientRepo;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.util.List;
 
@@ -15,6 +16,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class PatientService {
     private final PatientRepo patientrepo;
+    private final PasswordEncoder passwordEncoder;
 
     public Patient create(PatientDTO patient){
 
@@ -30,7 +32,7 @@ public class PatientService {
                 .guardiansName(patient.getGuardiansName())
                 .guardiansContactNo(patient.getGuardiansContactNo())
                 .username(patient.getUsername())
-                .password(patient.getPassword())
+                .password(passwordEncoder.encode(patient.getPassword()))
                 .bloodType(patient.getBloodType())
                 .build();
         return patientrepo.save(p);

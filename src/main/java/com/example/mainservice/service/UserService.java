@@ -1,68 +1,72 @@
 package com.example.mainservice.service;
 
-import com.example.mainservice.dto.SignupRequest;
-import com.example.mainservice.entity.User;
-import com.example.mainservice.repository.UserRepository;
+import com.example.mainservice.entity.Admin;
+import com.example.mainservice.entity.Doctor;
+import com.example.mainservice.entity.Patient;
+import com.example.mainservice.repository.AdminRepo;
+import com.example.mainservice.repository.DoctorRepo;
+import com.example.mainservice.repository.PatientRepo;
+import com.example.mainservice.security.CustomUserDetails;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class UserService implements UserDetailsService {
 
-    private final UserRepository userRepository;
-    private final PasswordEncoder passwordEncoder;
+    private final DoctorRepo doctorRepo;
+    private final PatientRepo patientRepo;
+    private final AdminRepo adminRepo;
 
-    public UserService(UserRepository userRepository, @Lazy PasswordEncoder passwordEncoder) {
-        this.userRepository = userRepository;
-        this.passwordEncoder = passwordEncoder;
+    public UserService(@Lazy DoctorRepo doctorRepo, @Lazy PatientRepo patientRepo, @Lazy AdminRepo adminRepo) {
+        this.doctorRepo = doctorRepo;
+        this.patientRepo = patientRepo;
+        this.adminRepo = adminRepo;
     }
 
     @Override
-    @Transactional
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
-        User user = userRepository.findByUsername(username)
-                .orElseThrow(() -> new UsernameNotFoundException("User not found with username: " + username));
-        return user;
-    }
-
-    @Transactional
-    public User registerUser(SignupRequest signupRequest) {
-        if (userRepository.existsByUsername(signupRequest.getUsername())) {
-            throw new RuntimeException("Username is already taken!");
+        // Try admin first (highest priority)
+        Admin admin = adminRepo.findByUsername(username).orElse(null);
+        if (admin != null) {
+            return new CustomUserDetails(
+                    admin.getId(),
+                    admin.getUsername(),
+                    admin.getPassword(),
+                    admin.getEmail(),
+                    admin.getName(),
+                    "ADMIN"
+            );
         }
 
-        if (userRepository.existsByEmail(signupRequest.getEmail())) {
-            throw new RuntimeException("Email is already in use!");
+        // Try doctor
+        Doctor doctor = doctorRepo.findByUsername(username).orElse(null);
+        if (doctor != null) {
+            return new CustomUserDetails(
+                    doctor.getId(),
+                    doctor.getUsername(),
+                    doctor.getPassword(),
+                    doctor.getEmail(),
+                    doctor.getName(),
+                    "DOCTOR"
+            );
         }
 
-        User.Role role;
-        try {
-            role = User.Role.valueOf(signupRequest.getRole().toUpperCase());
-        } catch (IllegalArgumentException e) {
-            throw new RuntimeException("Invalid role: " + signupRequest.getRole());
+        // Then patient
+        Patient patient = patientRepo.findByUsername(username).orElse(null);
+        if (patient != null) {
+            return new CustomUserDetails(
+                    patient.getId(),
+                    patient.getUsername(),
+                    patient.getPassword(),
+                    patient.getEmail(),
+                    patient.getName(),
+                    "PATIENT"
+            );
         }
 
-        User user = User.builder()
-                .username(signupRequest.getUsername())
-                .password(passwordEncoder.encode(signupRequest.getPassword()))
-                .email(signupRequest.getEmail())
-                .name(signupRequest.getName())
-                .dateOfBirth(signupRequest.getDateOfBirth())
-                .address(signupRequest.getAddress())
-                .nicNo(signupRequest.getNicNo())
-                .gender(signupRequest.getGender())
-                .contactNo(signupRequest.getContactNo())
-                .guardianName(signupRequest.getGuardianName())
-                .guardianContactNo(signupRequest.getGuardianContactNo())
-                .bloodType(signupRequest.getBloodType())
-                .role(role)
-                .build();
-
-        return userRepository.save(user);
+        throw new UsernameNotFoundException("User not found with username: " + username);
     }
 }

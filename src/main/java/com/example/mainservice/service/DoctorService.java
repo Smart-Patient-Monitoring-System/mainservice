@@ -2,9 +2,9 @@ package com.example.mainservice.service;
 import com.example.mainservice.dto.DoctorDTO;
 import com.example.mainservice.entity.Doctor;
 import com.example.mainservice.repository.DoctorRepo;
-import lombok.AllArgsConstructor;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.util.List;
 
@@ -14,6 +14,7 @@ import static java.util.stream.Collectors.toList;
 @RequiredArgsConstructor
 public class DoctorService {
     private final DoctorRepo doctorrepo;
+    private final PasswordEncoder passwordEncoder;
 
     public Doctor create(DoctorDTO doctor){
 
@@ -26,7 +27,7 @@ public class DoctorService {
                 .gender(doctor.getGender())
                 .contactNo(doctor.getContactNo())
                 .hospital(doctor.getHospital())
-                .password(doctor.getPassword())
+                .password(passwordEncoder.encode(doctor.getPassword()))
                 .position(doctor.getPosition())
                 .username(doctor.getUsername())
                 .dateOfBirth(doctor.getDateOfBirth())

@@ -1,8 +1,15 @@
 package com.example.mainservice.repository;
+
 import com.example.mainservice.entity.Doctor;
 import org.springframework.data.jpa.repository.JpaRepository;
 
-public interface DoctorRepo extends JpaRepository<Doctor,Long> {
+import java.util.Optional;
 
-    Long Id(Long id);
+public interface DoctorRepo extends JpaRepository<Doctor, Long> {
+
+    Optional<Doctor> findByUsername(String username);
+
+    boolean existsByUsername(String username);
+
+    boolean existsByEmail(String email);
 }
