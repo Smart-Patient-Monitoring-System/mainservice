@@ -27,4 +27,14 @@ public class PatientController {
     public List<PatientDTO> getAllPatients(){
         return  patientservice.getDetails();
     }
+
+    @DeleteMapping("/delete/{Id}")
+    public String deletePatientByID(@PathVariable Long Id) {
+        try {
+            patientservice.deletePatient(Id);
+            return "deleted successfully!";
+        } catch (RuntimeException e) {
+            return "Delete Failed";
+        }
+    }
 }

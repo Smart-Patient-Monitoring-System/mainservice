@@ -51,8 +51,11 @@ public class PatientService {
                 .password(p.getPassword())
                 .username(p.getUsername())
                 .build()).toList();
+    }
 
+    public void deletePatient(Long Id){
 
+        patientrepo.deleteById(Id);
     }
 
 }

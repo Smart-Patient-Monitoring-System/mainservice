@@ -26,11 +26,12 @@ public class DoctorController {
 
     @GetMapping("/get")
     public List<DoctorDTO> getAllDocters(){
+
         return  doctorservice.getDetails();
     }
 
     @DeleteMapping("/delete/{Id}")
-    public String deleteDoctorByRegistrationNo(@PathVariable Long Id) {
+    public String deleteDoctorByID(@PathVariable Long Id) {
         try {
             doctorservice.deleteDoctor(Id);
             return "deleted successfully!";
