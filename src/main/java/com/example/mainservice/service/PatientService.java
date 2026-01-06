@@ -6,6 +6,9 @@ import com.example.mainservice.repository.PatientRepo;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
+
+
 @Service
 @RequiredArgsConstructor
 public class PatientService {
@@ -29,6 +32,26 @@ public class PatientService {
                 .bloodType(patient.getBloodType())
                 .build();
         return patientrepo.save(p);
+
+    }
+
+    public List<PatientDTO> getDetails(){
+        return patientrepo.findAll().stream().map( p -> PatientDTO.builder()
+                .Id(p.getId())
+                .name(p.getName())
+                .dateOfBirth(p.getDateOfBirth())
+                .address(p.getAddress())
+                .email(p.getEmail())
+                .nicNo(p.getNicNo())
+                .gender(p.getGender())
+                .contactNo(p.getContactNo())
+                .guardiansName(p.getGuardiansName())
+                .guardiansContactNo(p.getGuardiansContactNo())
+                .bloodType(p.getBloodType())
+                .password(p.getPassword())
+                .username(p.getUsername())
+                .build()).toList();
+
 
     }
 

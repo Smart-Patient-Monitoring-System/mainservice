@@ -7,10 +7,9 @@ import com.example.mainservice.entity.Patient;
 import com.example.mainservice.service.PatientService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @Controller //initialize as a controller
 @RestController //initialize rest API s
@@ -24,4 +23,8 @@ public class PatientController {
         return patientservice.create(patientDto);
     }
 
+    @GetMapping("/get")
+    public List<PatientDTO> getAllPatients(){
+        return  patientservice.getDetails();
+    }
 }
