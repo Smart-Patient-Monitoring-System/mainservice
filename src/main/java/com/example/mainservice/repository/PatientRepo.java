@@ -3,5 +3,13 @@ package com.example.mainservice.repository;
 import com.example.mainservice.entity.Patient;
 import org.springframework.data.jpa.repository.JpaRepository;
 
-public interface PatientRepo extends JpaRepository<Patient,Long> {
+import java.util.Optional;
+
+public interface PatientRepo extends JpaRepository<Patient, Long> {
+
+    Optional<Patient> findByUsername(String username);
+
+    boolean existsByUsername(String username);
+
+    boolean existsByEmail(String email);
 }
