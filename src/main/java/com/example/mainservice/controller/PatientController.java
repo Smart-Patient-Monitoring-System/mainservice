@@ -1,9 +1,10 @@
 package com.example.mainservice.controller;
 
-
 import com.example.mainservice.dto.DoctorDTO;
+import com.example.mainservice.dto.PatientDTO;
 import com.example.mainservice.entity.Doctor;
-import com.example.mainservice.service.DoctorService;
+import com.example.mainservice.entity.Patient;
+import com.example.mainservice.service.PatientService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -14,26 +15,25 @@ import java.util.List;
 
 @Controller //initialize as a controller
 @RestController //initialize rest API s
-@RequestMapping("/api/doctor")
-public class DoctorController {
+@RequestMapping("/api/patient")
+public class PatientController {
     @Autowired
-    private DoctorService doctorservice;
+    private PatientService patientservice;
 
     @PostMapping("/create")
-    public Doctor createDoctor(@RequestBody DoctorDTO doctorDto){
-        return doctorservice.create(doctorDto);
+    public Patient createPatient(@RequestBody PatientDTO patientDto){
+        return patientservice.create(patientDto);
     }
 
     @GetMapping("/get")
-    public List<DoctorDTO> getAllDocters(){
-
-        return  doctorservice.getDetails();
+    public List<PatientDTO> getAllPatients(){
+        return  patientservice.getDetails();
     }
 
     @DeleteMapping("/delete/{Id}")
-    public String deleteDoctorByID(@PathVariable Long Id) {
+    public String deletePatientByID(@PathVariable Long Id) {
         try {
-            doctorservice.deleteDoctor(Id);
+            patientservice.deletePatient(Id);
             return "deleted successfully!";
         } catch (RuntimeException e) {
             return "Delete Failed";
@@ -41,15 +41,14 @@ public class DoctorController {
     }
 
     @PutMapping("/update/{Id}")
-    public ResponseEntity<DoctorDTO> updateDoctorByID(
+    public ResponseEntity<PatientDTO> updatePatientByID(
             @PathVariable Long Id,
-            @RequestBody DoctorDTO doctorDto) {
+            @RequestBody PatientDTO patientDto) {
         try {
-            DoctorDTO updatedDoctor = doctorservice.updateDoctor(Id, doctorDto);
-            return ResponseEntity.ok(updatedDoctor);
+            PatientDTO updatedPatient = patientservice.updatePatient(Id, patientDto);
+            return ResponseEntity.ok(updatedPatient);
         } catch (RuntimeException e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
         }
     }
-
 }
