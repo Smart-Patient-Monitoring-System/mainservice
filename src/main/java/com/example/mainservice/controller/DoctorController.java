@@ -41,7 +41,7 @@ public class DoctorController {
     }
 
     @PutMapping("/update/{Id}")
-    public ResponseEntity<DoctorDTO> updateDoctorByRegistrationNo(
+    public ResponseEntity<DoctorDTO> updateDoctorByID(
             @PathVariable Long Id,
             @RequestBody DoctorDTO doctorDto) {
         try {

@@ -6,6 +6,8 @@ import com.example.mainservice.entity.Doctor;
 import com.example.mainservice.entity.Patient;
 import com.example.mainservice.service.PatientService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
 
@@ -35,6 +37,18 @@ public class PatientController {
             return "deleted successfully!";
         } catch (RuntimeException e) {
             return "Delete Failed";
+        }
+    }
+
+    @PutMapping("/update/{Id}")
+    public ResponseEntity<PatientDTO> updatePatientByID(
+            @PathVariable Long Id,
+            @RequestBody PatientDTO patientDto) {
+        try {
+            PatientDTO updatedPatient = patientservice.updatePatient(Id, patientDto);
+            return ResponseEntity.ok(updatedPatient);
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
         }
     }
 }
