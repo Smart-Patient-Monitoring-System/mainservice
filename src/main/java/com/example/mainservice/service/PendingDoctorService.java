@@ -1,5 +1,6 @@
 package com.example.mainservice.service;
 
+import com.example.mainservice.dto.DoctorDTO;
 import com.example.mainservice.dto.PendingDoctorDTO;
 import com.example.mainservice.entity.PendingDoctor;
 import com.example.mainservice.repository.PendingDoctorRepo;
@@ -32,6 +33,23 @@ public class PendingDoctorService {
                 .dateOfBirth(pendingdoctor.getDateOfBirth())
                 .build();
         return  pendingdoctorrepo.save(pd);
+    }
+    public List<PendingDoctorDTO> getDetails(){
+
+        return pendingdoctorrepo.findAll().stream().map(pd -> PendingDoctorDTO.builder()
+                .Id(pd.getId())
+                .name(pd.getName())
+                .email(pd.getEmail())
+                .nicNo(pd.getNicNo())
+                .doctorRegNo(pd.getDoctorRegNo())
+                .address(pd.getAddress())
+                .gender(pd.getGender())
+                .contactNo(pd.getContactNo())
+                .hospital(pd.getHospital())
+                .password(pd.getPassword())
+                .position(pd.getPosition())
+                .username(pd.getUsername())
+                .dateOfBirth(pd.getDateOfBirth()).build()).toList();
     }
 
     public void deletePendingDoctor(Long Id){
