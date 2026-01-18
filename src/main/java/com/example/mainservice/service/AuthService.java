@@ -10,6 +10,8 @@ import com.example.mainservice.entity.Admin;
 import com.example.mainservice.entity.Doctor;
 import com.example.mainservice.entity.PasswordResetToken;
 import com.example.mainservice.entity.Patient;
+
+import java.util.List;
 import com.example.mainservice.repository.AdminRepo;
 import com.example.mainservice.repository.DoctorRepo;
 import com.example.mainservice.repository.PasswordResetTokenRepository;
@@ -49,40 +51,60 @@ public class AuthService {
         }
 
         String requestedRole = loginRequest.getRole().toUpperCase().trim();
-        
-        // Check if user exists before attempting authentication
-        boolean userExists = false;
-        String actualRole = null;
-        
-        if ("PATIENT".equals(requestedRole)) {
-            userExists = patientRepo.findByUsername(loginRequest.getUsername()).isPresent();
-            if (userExists) actualRole = "PATIENT";
-        } else if ("DOCTOR".equals(requestedRole)) {
-            userExists = doctorRepo.findByUsername(loginRequest.getUsername()).isPresent();
-            if (userExists) actualRole = "DOCTOR";
-        } else if ("ADMIN".equals(requestedRole)) {
-            userExists = adminRepo.findByUsername(loginRequest.getUsername()).isPresent();
-            if (userExists) actualRole = "ADMIN";
-        }
-        
-        if (!userExists) {
-            throw new RuntimeException("No " + requestedRole + " account found with username: " + loginRequest.getUsername());
-        }
+        String username = loginRequest.getUsername().trim();
 
-        Authentication authentication = authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(
-                        loginRequest.getUsername(),
-                        loginRequest.getPassword()
-                )
-        );
+        try {
+            Authentication authentication = authenticationManager.authenticate(
+                    new UsernamePasswordAuthenticationToken(
+                            username,
+                            loginRequest.getPassword()
+                    )
+            );
 
-        CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
+            CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
 
-        // Validate that the user's role matches the requested role
-        String userRole = userDetails.getRole().toUpperCase();
-        
-        if (!requestedRole.equals(userRole)) {
-            throw new RuntimeException("Invalid role. This account is registered as " + userRole + ", not " + requestedRole + ". Please login as " + userRole);
+            // Validate that the user's role matches the requested role
+            String userRole = userDetails.getRole().toUpperCase();
+            
+            if (!requestedRole.equals(userRole)) {
+                throw new RuntimeException("Invalid role. This account is registered as " + userRole + ", not " + requestedRole + ". Please login as " + userRole);
+            }
+
+            String token = jwtUtil.generateToken(userDetails, userDetails.getRole());
+
+            return AuthResponse.builder()
+                    .token(token)
+                    .username(userDetails.getUsername())
+                    .email(userDetails.getEmail())
+                    .role(userDetails.getRole())
+                    .name(userDetails.getDisplayName())
+                    .build();
+        } catch (org.springframework.security.core.AuthenticationException e) {
+            // Check if user exists but with wrong role or password
+            // Try exact match first
+            boolean patientExists = patientRepo.findByUsername(username).isPresent();
+            boolean doctorExists = doctorRepo.findByUsername(username).isPresent();
+            boolean adminExists = adminRepo.findByUsername(username).isPresent();
+            
+            // If not found with exact match, try case-insensitive search
+            if (!patientExists && "PATIENT".equals(requestedRole)) {
+                List<Patient> allPatients = patientRepo.findAll();
+                for (Patient p : allPatients) {
+                    if (p.getUsername() != null && p.getUsername().equalsIgnoreCase(username)) {
+                        // Found with different case - password might be wrong or case issue
+                        throw new RuntimeException("Username found but case doesn't match. Database has: '" + p.getUsername() + "', you entered: '" + username + "'. Please use exact username: '" + p.getUsername() + "'");
+                    }
+                }
+            }
+            
+            if (!patientExists && !doctorExists && !adminExists) {
+                throw new RuntimeException("No account found with username: '" + username + "'. Please check your username (case-sensitive) or sign up.");
+            } else if ("PATIENT".equals(requestedRole) && !patientExists) {
+                String actualRole = doctorExists ? "DOCTOR" : (adminExists ? "ADMIN" : "UNKNOWN");
+                throw new RuntimeException("Username exists but is registered as " + actualRole + ", not PATIENT. Please login as " + actualRole);
+            } else {
+                throw new RuntimeException("Invalid password for username: " + username);
+            }
         }
 
         String token = jwtUtil.generateToken(userDetails, userDetails.getRole());
