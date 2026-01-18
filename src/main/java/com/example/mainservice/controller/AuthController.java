@@ -86,10 +86,11 @@ public class AuthController {
     @PostMapping("/reset-password")
     public ResponseEntity<?> resetPassword(@Valid @RequestBody ResetPasswordRequest request) {
         try {
-            authService.resetPassword(request);
-            return ResponseEntity.ok(new SuccessResponse(
-                "Password has been reset successfully. You can now login with your new password."
-            ));
+            String role = authService.resetPassword(request);
+            Map<String, Object> response = new HashMap<>();
+            response.put("message", "Password has been reset successfully. You can now login with your new password.");
+            response.put("role", role);
+            return ResponseEntity.ok(response);
         } catch (RuntimeException e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body(new ErrorResponse(e.getMessage()));

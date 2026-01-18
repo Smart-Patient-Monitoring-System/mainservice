@@ -257,10 +257,10 @@ public class AuthService {
         passwordResetTokenRepository.save(token);
 
         // Send reset email (logs to console in development)
-        emailService.sendPasswordResetEmail(email, resetToken, username);
+        emailService.sendPasswordResetEmail(email, resetToken, username, role);
 
         // Build reset link
-        String resetLink = emailService.getResetLink(resetToken);
+        String resetLink = emailService.getResetLink(resetToken, role);
 
         // Return response with token and link for development use
         // In production, remove resetToken and resetLink from response
@@ -273,9 +273,10 @@ public class AuthService {
 
     /**
      * Reset password using reset token
+     * @return The role of the user whose password was reset (for redirect purposes)
      */
     @Transactional
-    public void resetPassword(ResetPasswordRequest request) {
+    public String resetPassword(ResetPasswordRequest request) {
         String token = request.getToken().trim();
         String newPassword = request.getNewPassword();
 
@@ -333,5 +334,8 @@ public class AuthService {
         // Mark token as used
         resetToken.setUsed(true);
         passwordResetTokenRepository.save(resetToken);
+        
+        // Return the role so frontend knows where to redirect
+        return role;
     }
 }

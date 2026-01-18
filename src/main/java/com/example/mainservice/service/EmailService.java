@@ -19,9 +19,11 @@ public class EmailService {
 
     /**
      * Get the password reset link
+     * @param resetToken The password reset token
+     * @param role The user role (DOCTOR, PATIENT, ADMIN) to determine redirect destination
      */
-    public String getResetLink(String resetToken) {
-        return frontendUrl + "/reset-password?token=" + resetToken;
+    public String getResetLink(String resetToken, String role) {
+        return frontendUrl + "/reset-password?token=" + resetToken + "&role=" + role.toUpperCase();
     }
 
     /**
@@ -29,9 +31,10 @@ public class EmailService {
      * @param email User's email address
      * @param resetToken Password reset token
      * @param username User's username
+     * @param role User's role (DOCTOR, PATIENT, ADMIN)
      */
-    public void sendPasswordResetEmail(String email, String resetToken, String username) {
-        String resetLink = getResetLink(resetToken);
+    public void sendPasswordResetEmail(String email, String resetToken, String username, String role) {
+        String resetLink = getResetLink(resetToken, role);
         
         String subject = "Password Reset Request";
         String body = buildPasswordResetEmailBody(username, resetLink, resetToken);
