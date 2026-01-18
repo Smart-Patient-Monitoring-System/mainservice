@@ -106,16 +106,6 @@ public class AuthService {
                 throw new RuntimeException("Invalid password for username: " + username);
             }
         }
-
-        String token = jwtUtil.generateToken(userDetails, userDetails.getRole());
-
-        return AuthResponse.builder()
-                .token(token)
-                .username(userDetails.getUsername())
-                .email(userDetails.getEmail())
-                .role(userDetails.getRole())
-                .name(userDetails.getDisplayName())
-                .build();
     }
 
     public AuthResponse signup(SignupRequest signupRequest) {
