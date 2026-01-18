@@ -1,7 +1,10 @@
 package com.example.mainservice.controller;
 
 import com.example.mainservice.dto.AuthResponse;
+import com.example.mainservice.dto.ForgotPasswordRequest;
+import com.example.mainservice.dto.ForgotPasswordResponse;
 import com.example.mainservice.dto.LoginRequest;
+import com.example.mainservice.dto.ResetPasswordRequest;
 import com.example.mainservice.dto.SignupRequest;
 import com.example.mainservice.service.AuthService;
 import jakarta.validation.Valid;
@@ -30,7 +33,12 @@ public class AuthController {
         try {
             AuthResponse response = authService.login(loginRequest);
             return ResponseEntity.ok(response);
+        } catch (RuntimeException e) {
+            // Handle role mismatch or other runtime exceptions
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(new ErrorResponse(e.getMessage()));
         } catch (Exception e) {
+            // Handle authentication failures
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(new ErrorResponse("Invalid username or password"));
         }
@@ -47,6 +55,38 @@ public class AuthController {
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(new ErrorResponse("An error occurred during signup: " + e.getMessage()));
+        }
+    }
+
+    @PostMapping("/forgot-password")
+    public ResponseEntity<?> forgotPassword(@Valid @RequestBody ForgotPasswordRequest request) {
+        try {
+            ForgotPasswordResponse response = authService.forgotPassword(request);
+            // Response includes resetToken and resetLink for development
+            // In production, you may want to hide these and only return the message
+            return ResponseEntity.ok(response);
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(new ErrorResponse(e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new ErrorResponse("An error occurred: " + e.getMessage()));
+        }
+    }
+
+    @PostMapping("/reset-password")
+    public ResponseEntity<?> resetPassword(@Valid @RequestBody ResetPasswordRequest request) {
+        try {
+            authService.resetPassword(request);
+            return ResponseEntity.ok(new SuccessResponse(
+                "Password has been reset successfully. You can now login with your new password."
+            ));
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(new ErrorResponse(e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new ErrorResponse("An error occurred: " + e.getMessage()));
         }
     }
 
@@ -75,6 +115,12 @@ public class AuthController {
     @Data
     @AllArgsConstructor
     public static class ErrorResponse {
+        private String message;
+    }
+
+    @Data
+    @AllArgsConstructor
+    public static class SuccessResponse {
         private String message;
     }
 }
