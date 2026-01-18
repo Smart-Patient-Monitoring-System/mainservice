@@ -35,10 +35,18 @@ public class AuthController {
             return ResponseEntity.ok(response);
         } catch (RuntimeException e) {
             // Handle role mismatch or other runtime exceptions
-            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+            // Return 400 Bad Request for role/validation errors, 403 for access denied
+            HttpStatus status = e.getMessage().contains("role") || e.getMessage().contains("Role") 
+                ? HttpStatus.BAD_REQUEST 
+                : HttpStatus.FORBIDDEN;
+            return ResponseEntity.status(status)
                     .body(new ErrorResponse(e.getMessage()));
+        } catch (org.springframework.security.core.AuthenticationException e) {
+            // Handle authentication failures (wrong username/password)
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(new ErrorResponse("Invalid username or password"));
         } catch (Exception e) {
-            // Handle authentication failures
+            // Handle other exceptions
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(new ErrorResponse("Invalid username or password"));
         }

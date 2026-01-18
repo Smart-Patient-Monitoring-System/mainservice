@@ -43,6 +43,11 @@ public class AuthService {
     private final EmailService emailService;
 
     public AuthResponse login(LoginRequest loginRequest) {
+        // Validate role is provided
+        if (loginRequest.getRole() == null || loginRequest.getRole().trim().isEmpty()) {
+            throw new RuntimeException("Role is required for login");
+        }
+
         Authentication authentication = authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(
                         loginRequest.getUsername(),
@@ -53,7 +58,7 @@ public class AuthService {
         CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
 
         // Validate that the user's role matches the requested role
-        String requestedRole = loginRequest.getRole().toUpperCase();
+        String requestedRole = loginRequest.getRole().toUpperCase().trim();
         String userRole = userDetails.getRole().toUpperCase();
         
         if (!requestedRole.equals(userRole)) {
