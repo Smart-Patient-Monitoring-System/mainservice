@@ -48,6 +48,27 @@ public class AuthService {
             throw new RuntimeException("Role is required for login");
         }
 
+        String requestedRole = loginRequest.getRole().toUpperCase().trim();
+        
+        // Check if user exists before attempting authentication
+        boolean userExists = false;
+        String actualRole = null;
+        
+        if ("PATIENT".equals(requestedRole)) {
+            userExists = patientRepo.findByUsername(loginRequest.getUsername()).isPresent();
+            if (userExists) actualRole = "PATIENT";
+        } else if ("DOCTOR".equals(requestedRole)) {
+            userExists = doctorRepo.findByUsername(loginRequest.getUsername()).isPresent();
+            if (userExists) actualRole = "DOCTOR";
+        } else if ("ADMIN".equals(requestedRole)) {
+            userExists = adminRepo.findByUsername(loginRequest.getUsername()).isPresent();
+            if (userExists) actualRole = "ADMIN";
+        }
+        
+        if (!userExists) {
+            throw new RuntimeException("No " + requestedRole + " account found with username: " + loginRequest.getUsername());
+        }
+
         Authentication authentication = authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(
                         loginRequest.getUsername(),
@@ -58,11 +79,10 @@ public class AuthService {
         CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
 
         // Validate that the user's role matches the requested role
-        String requestedRole = loginRequest.getRole().toUpperCase().trim();
         String userRole = userDetails.getRole().toUpperCase();
         
         if (!requestedRole.equals(userRole)) {
-            throw new RuntimeException("Invalid role. This account is registered as " + userRole + ", not " + requestedRole);
+            throw new RuntimeException("Invalid role. This account is registered as " + userRole + ", not " + requestedRole + ". Please login as " + userRole);
         }
 
         String token = jwtUtil.generateToken(userDetails, userDetails.getRole());
