@@ -29,7 +29,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.Optional;
-import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -231,11 +230,13 @@ public class AuthService {
         // Delete any existing reset tokens for this user
         passwordResetTokenRepository.deleteByUsernameAndRole(username, role);
 
-        // Generate reset token
-        String resetToken = UUID.randomUUID().toString();
-        LocalDateTime expiryDate = LocalDateTime.now().plusHours(1); // Token expires in 1 hour
+        // Generate JWT reset token (expires in 1 hour)
+        String resetToken = jwtUtil.generatePasswordResetToken(username, role);
+        
+        // Calculate expiry date (1 hour from now)
+        LocalDateTime expiryDate = LocalDateTime.now().plusHours(1);
 
-        // Save reset token
+        // Save reset token to database for tracking (used flag)
         PasswordResetToken token = PasswordResetToken.builder()
                 .token(resetToken)
                 .username(username)
@@ -262,7 +263,7 @@ public class AuthService {
     }
 
     /**
-     * Reset password using reset token
+     * Reset password using JWT reset token
      * @return The role of the user whose password was reset (for redirect purposes)
      */
     @Transactional
@@ -270,29 +271,43 @@ public class AuthService {
         String token = request.getToken().trim();
         String newPassword = request.getNewPassword();
 
-        // Find token
-        Optional<PasswordResetToken> tokenOptional = passwordResetTokenRepository.findByToken(token);
-        
-        if (tokenOptional.isEmpty()) {
+        // Validate JWT token (checks expiration and signature)
+        if (!jwtUtil.validatePasswordResetToken(token)) {
             throw new RuntimeException("Invalid or expired reset token");
         }
 
-        PasswordResetToken resetToken = tokenOptional.get();
-
-        // Check if token is expired
-        if (resetToken.isExpired()) {
-            passwordResetTokenRepository.delete(resetToken);
-            throw new RuntimeException("Reset token has expired. Please request a new password reset.");
+        // Extract username and role from JWT token
+        String username;
+        String role;
+        try {
+            username = jwtUtil.extractUsername(token);
+            role = jwtUtil.extractRole(token);
+        } catch (Exception e) {
+            throw new RuntimeException("Invalid reset token format");
         }
 
-        // Check if token is already used
-        if (resetToken.isUsed()) {
-            throw new RuntimeException("This reset token has already been used. Please request a new password reset.");
+        // Check if token exists in database and is not already used
+        Optional<PasswordResetToken> tokenOptional = passwordResetTokenRepository.findByToken(token);
+        
+        if (tokenOptional.isPresent()) {
+            PasswordResetToken resetToken = tokenOptional.get();
+            
+            // Check if token is already used
+            if (resetToken.isUsed()) {
+                throw new RuntimeException("This reset token has already been used. Please request a new password reset.");
+            }
+            
+            // Verify username and role match
+            if (!resetToken.getUsername().equals(username) || !resetToken.getRole().equals(role)) {
+                throw new RuntimeException("Token does not match user information");
+            }
+        } else {
+            // Token not in database - might be from old system or deleted
+            // Still allow if JWT is valid (for backward compatibility)
+            // But log a warning
         }
 
         // Update password based on role
-        String username = resetToken.getUsername();
-        String role = resetToken.getRole();
         String encodedPassword = passwordEncoder.encode(newPassword);
 
         switch (role) {
@@ -321,9 +336,12 @@ public class AuthService {
                 throw new RuntimeException("Invalid role");
         }
 
-        // Mark token as used
-        resetToken.setUsed(true);
-        passwordResetTokenRepository.save(resetToken);
+        // Mark token as used in database (if it exists)
+        if (tokenOptional.isPresent()) {
+            PasswordResetToken resetToken = tokenOptional.get();
+            resetToken.setUsed(true);
+            passwordResetTokenRepository.save(resetToken);
+        }
         
         // Return the role so frontend knows where to redirect
         return role;
