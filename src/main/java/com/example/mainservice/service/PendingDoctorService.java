@@ -2,11 +2,14 @@ package com.example.mainservice.service;
 
 import com.example.mainservice.dto.DoctorDTO;
 import com.example.mainservice.dto.PendingDoctorDTO;
+import com.example.mainservice.entity.Doctor;
 import com.example.mainservice.entity.PendingDoctor;
+import com.example.mainservice.repository.DoctorRepo;
 import com.example.mainservice.repository.PendingDoctorRepo;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
@@ -14,6 +17,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class PendingDoctorService {
     private final PendingDoctorRepo pendingdoctorrepo;
+    private final DoctorRepo doctorRepo;
     private final PasswordEncoder passwordEncoder;
 
     public PendingDoctor create(PendingDoctorDTO pendingdoctor){
@@ -95,4 +99,30 @@ public class PendingDoctorService {
 
         return dto;
     }
+
+    @Transactional
+    public void acceptDoctor(Long id) {
+
+        PendingDoctor pending = pendingdoctorrepo.findById(id)
+                .orElseThrow(() -> new RuntimeException("Pending doctor not found"));
+
+        Doctor doctor = Doctor.builder()
+                .name(pending.getName())
+                .dateOfBirth(pending.getDateOfBirth())
+                .address(pending.getAddress())
+                .email(pending.getEmail())
+                .nicNo(pending.getNicNo())
+                .gender(pending.getGender())
+                .contactNo(pending.getContactNo())
+                .doctorRegNo(pending.getDoctorRegNo())
+                .position(pending.getPosition())
+                .hospital(pending.getHospital())
+                .username(pending.getUsername())
+                .password(pending.getPassword()) // already encrypted
+                .build();
+
+        doctorRepo.save(doctor);     //  add to Doctor table
+        pendingdoctorrepo.deleteById(id);  //  remove from Pending table
+    }
+
 }

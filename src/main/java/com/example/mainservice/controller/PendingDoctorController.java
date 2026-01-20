@@ -57,6 +57,13 @@ public class PendingDoctorController {
         }
     }
 
+    @PostMapping("/accept/{id}")
+    public ResponseEntity<String> acceptDoctor(@PathVariable Long id) {
+        pendingdoctorservice .acceptDoctor(id);
+        return ResponseEntity.ok("Doctor accepted successfully");
+    }
+
+
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<PendingDoctorController.ErrorResponse> handleValidationExceptions(MethodArgumentNotValidException ex) {
         Map<String, String> errors = new HashMap<>();
