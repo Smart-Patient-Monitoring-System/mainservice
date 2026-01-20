@@ -3,9 +3,12 @@ package com.example.mainservice.controller;
 import com.example.mainservice.dto.AuthResponse;
 import com.example.mainservice.dto.ForgotPasswordRequest;
 import com.example.mainservice.dto.ForgotPasswordResponse;
+import com.example.mainservice.dto.ForgotPasswordOtpStartResponse;
 import com.example.mainservice.dto.LoginRequest;
+import com.example.mainservice.dto.ResetForgotPasswordRequest;
 import com.example.mainservice.dto.ResetPasswordRequest;
 import com.example.mainservice.dto.SignupRequest;
+import com.example.mainservice.dto.VerifyForgotPasswordOtpRequest;
 import com.example.mainservice.dto.VerifyLoginOtpRequest;
 import com.example.mainservice.service.AuthService;
 import jakarta.validation.Valid;
@@ -91,6 +94,52 @@ public class AuthController {
             ForgotPasswordResponse response = authService.forgotPassword(request);
             // Response includes resetToken and resetLink for development
             // In production, you may want to hide these and only return the message
+            return ResponseEntity.ok(response);
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(new ErrorResponse(e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new ErrorResponse("An error occurred: " + e.getMessage()));
+        }
+    }
+
+    // New OTP-based forgot-password flow (preferred)
+    @PostMapping("/forgot-password/request-otp")
+    public ResponseEntity<?> forgotPasswordRequestOtp(@Valid @RequestBody ForgotPasswordRequest request) {
+        try {
+            ForgotPasswordOtpStartResponse response = authService.startForgotPasswordOtp(request);
+            return ResponseEntity.ok(response);
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(new ErrorResponse(e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new ErrorResponse("An error occurred: " + e.getMessage()));
+        }
+    }
+
+    @PostMapping("/forgot-password/verify-otp")
+    public ResponseEntity<?> forgotPasswordVerifyOtp(@Valid @RequestBody VerifyForgotPasswordOtpRequest request) {
+        try {
+            authService.verifyForgotPasswordOtp(request.getResetSessionId(), request.getOtp());
+            return ResponseEntity.ok(new SuccessResponse("OTP verified successfully"));
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(new ErrorResponse(e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new ErrorResponse("An error occurred during OTP verification"));
+        }
+    }
+
+    @PostMapping("/forgot-password/reset")
+    public ResponseEntity<?> forgotPasswordReset(@Valid @RequestBody ResetForgotPasswordRequest request) {
+        try {
+            String role = authService.resetForgotPassword(request.getResetSessionId(), request.getNewPassword());
+            Map<String, Object> response = new HashMap<>();
+            response.put("message", "Password has been reset successfully. You can now login with your new password.");
+            response.put("role", role);
             return ResponseEntity.ok(response);
         } catch (RuntimeException e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)

@@ -10,12 +10,14 @@ import com.example.mainservice.entity.Admin;
 import com.example.mainservice.entity.Doctor;
 import com.example.mainservice.entity.LoginOtpSession;
 import com.example.mainservice.entity.PasswordResetToken;
+import com.example.mainservice.entity.PasswordResetOtpSession;
 import com.example.mainservice.entity.Patient;
 
 import java.util.List;
 import com.example.mainservice.repository.AdminRepo;
 import com.example.mainservice.repository.DoctorRepo;
 import com.example.mainservice.repository.LoginOtpSessionRepository;
+import com.example.mainservice.repository.PasswordResetOtpSessionRepository;
 import com.example.mainservice.repository.PasswordResetTokenRepository;
 import com.example.mainservice.repository.PatientRepo;
 import com.example.mainservice.security.CustomUserDetails;
@@ -43,6 +45,7 @@ public class AuthService {
     private final AdminRepo adminRepo;
     private final PasswordResetTokenRepository passwordResetTokenRepository;
     private final LoginOtpSessionRepository loginOtpSessionRepository;
+    private final PasswordResetOtpSessionRepository passwordResetOtpSessionRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtUtil jwtUtil;
     private final EmailService emailService;
@@ -353,7 +356,6 @@ public class AuthService {
     @Transactional
     public String resetPassword(ResetPasswordRequest request) {
         String token = request.getToken().trim();
-        String currentPassword = request.getCurrentPassword();
         String newPassword = request.getNewPassword();
 
         // Validate JWT token (checks expiration and signature)
@@ -392,16 +394,13 @@ public class AuthService {
             // But log a warning
         }
 
-        // Update password based on role (also validate current password)
+        // Update password based on role
         String encodedPassword = passwordEncoder.encode(newPassword);
 
         switch (role) {
             case "PATIENT":
                 Patient patient = patientRepo.findByUsername(username)
                         .orElseThrow(() -> new RuntimeException("Patient not found"));
-                if (!passwordEncoder.matches(currentPassword, patient.getPassword())) {
-                    throw new RuntimeException("Current password is incorrect");
-                }
                 patient.setPassword(encodedPassword);
                 patientRepo.save(patient);
                 break;
@@ -409,9 +408,6 @@ public class AuthService {
             case "DOCTOR":
                 Doctor doctor = doctorRepo.findByUsername(username)
                         .orElseThrow(() -> new RuntimeException("Doctor not found"));
-                if (!passwordEncoder.matches(currentPassword, doctor.getPassword())) {
-                    throw new RuntimeException("Current password is incorrect");
-                }
                 doctor.setPassword(encodedPassword);
                 doctorRepo.save(doctor);
                 break;
@@ -419,9 +415,6 @@ public class AuthService {
             case "ADMIN":
                 Admin admin = adminRepo.findByUsername(username)
                         .orElseThrow(() -> new RuntimeException("Admin not found"));
-                if (!passwordEncoder.matches(currentPassword, admin.getPassword())) {
-                    throw new RuntimeException("Current password is incorrect");
-                }
                 admin.setPassword(encodedPassword);
                 adminRepo.save(admin);
                 break;
@@ -438,6 +431,170 @@ public class AuthService {
         }
         
         // Return the role so frontend knows where to redirect
+        return role;
+    }
+
+    @Transactional
+    public com.example.mainservice.dto.ForgotPasswordOtpStartResponse startForgotPasswordOtp(ForgotPasswordRequest request) {
+        String emailOrUsername = request.getEmailOrUsername().trim();
+        String role = request.getRole().toUpperCase().trim();
+
+        String username;
+        String email;
+        String displayName;
+
+        switch (role) {
+            case "PATIENT": {
+                Optional<Patient> byEmail = patientRepo.findByEmail(emailOrUsername);
+                Optional<Patient> byUsername = patientRepo.findByUsername(emailOrUsername);
+                Patient p;
+                if (byEmail.isPresent()) {
+                    p = byEmail.get();
+                } else if (byUsername.isPresent()) {
+                    p = byUsername.get();
+                } else {
+                    throw new RuntimeException("No patient found with the provided email or username");
+                }
+                username = p.getUsername();
+                email = p.getEmail();
+                displayName = p.getName();
+                break;
+            }
+            case "DOCTOR": {
+                Optional<Doctor> byEmail = doctorRepo.findByEmail(emailOrUsername);
+                Optional<Doctor> byUsername = doctorRepo.findByUsername(emailOrUsername);
+                Doctor d;
+                if (byEmail.isPresent()) {
+                    d = byEmail.get();
+                } else if (byUsername.isPresent()) {
+                    d = byUsername.get();
+                } else {
+                    throw new RuntimeException("No doctor found with the provided email or username");
+                }
+                username = d.getUsername();
+                email = d.getEmail();
+                displayName = d.getName();
+                break;
+            }
+            case "ADMIN": {
+                Optional<Admin> byEmail = adminRepo.findByEmail(emailOrUsername);
+                Optional<Admin> byUsername = adminRepo.findByUsername(emailOrUsername);
+                Admin a;
+                if (byEmail.isPresent()) {
+                    a = byEmail.get();
+                } else if (byUsername.isPresent()) {
+                    a = byUsername.get();
+                } else {
+                    throw new RuntimeException("No admin found with the provided email or username");
+                }
+                username = a.getUsername();
+                email = a.getEmail();
+                displayName = a.getName();
+                break;
+            }
+            default:
+                throw new RuntimeException("Invalid role. Must be DOCTOR, PATIENT, or ADMIN");
+        }
+
+        // keep only one active session per user+role
+        passwordResetOtpSessionRepository.deleteByUsernameAndRole(username, role);
+
+        String otp = generateOtp6();
+        String sessionId = UUID.randomUUID().toString();
+
+        PasswordResetOtpSession session = PasswordResetOtpSession.builder()
+                .sessionId(sessionId)
+                .username(username)
+                .role(role)
+                .otpHash(passwordEncoder.encode(otp))
+                .expiresAt(LocalDateTime.now().plusMinutes(10))
+                .attempts(0)
+                .verified(false)
+                .used(false)
+                .createdAt(LocalDateTime.now())
+                .build();
+
+        passwordResetOtpSessionRepository.save(session);
+        emailService.sendPasswordResetOtpEmail(email, otp, displayName);
+
+        return com.example.mainservice.dto.ForgotPasswordOtpStartResponse.builder()
+                .message("OTP has been sent to your email. Please check your inbox.")
+                .otpRequired(true)
+                .resetSessionId(sessionId)
+                .build();
+    }
+
+    @Transactional
+    public void verifyForgotPasswordOtp(String resetSessionId, String otp) {
+        PasswordResetOtpSession session = passwordResetOtpSessionRepository.findBySessionId(resetSessionId)
+                .orElseThrow(() -> new RuntimeException("Invalid or expired reset session"));
+
+        if (session.isUsed()) {
+            throw new RuntimeException("Reset session already used. Please request a new OTP.");
+        }
+        if (LocalDateTime.now().isAfter(session.getExpiresAt())) {
+            throw new RuntimeException("OTP expired. Please request a new OTP.");
+        }
+        if (session.getAttempts() >= 5) {
+            throw new RuntimeException("Too many invalid attempts. Please request a new OTP.");
+        }
+
+        session.setAttempts(session.getAttempts() + 1);
+
+        boolean ok = passwordEncoder.matches(otp, session.getOtpHash());
+        if (!ok) {
+            passwordResetOtpSessionRepository.save(session);
+            throw new RuntimeException("Invalid OTP");
+        }
+
+        session.setVerified(true);
+        passwordResetOtpSessionRepository.save(session);
+    }
+
+    @Transactional
+    public String resetForgotPassword(String resetSessionId, String newPassword) {
+        PasswordResetOtpSession session = passwordResetOtpSessionRepository.findBySessionId(resetSessionId)
+                .orElseThrow(() -> new RuntimeException("Invalid or expired reset session"));
+
+        if (session.isUsed()) {
+            throw new RuntimeException("Reset session already used. Please request a new OTP.");
+        }
+        if (!session.isVerified()) {
+            throw new RuntimeException("OTP not verified. Please verify OTP first.");
+        }
+        if (LocalDateTime.now().isAfter(session.getExpiresAt())) {
+            throw new RuntimeException("OTP expired. Please request a new OTP.");
+        }
+
+        String encodedPassword = passwordEncoder.encode(newPassword);
+        String role = session.getRole();
+        String username = session.getUsername();
+
+        switch (role) {
+            case "PATIENT":
+                Patient patient = patientRepo.findByUsername(username)
+                        .orElseThrow(() -> new RuntimeException("Patient not found"));
+                patient.setPassword(encodedPassword);
+                patientRepo.save(patient);
+                break;
+            case "DOCTOR":
+                Doctor doctor = doctorRepo.findByUsername(username)
+                        .orElseThrow(() -> new RuntimeException("Doctor not found"));
+                doctor.setPassword(encodedPassword);
+                doctorRepo.save(doctor);
+                break;
+            case "ADMIN":
+                Admin admin = adminRepo.findByUsername(username)
+                        .orElseThrow(() -> new RuntimeException("Admin not found"));
+                admin.setPassword(encodedPassword);
+                adminRepo.save(admin);
+                break;
+            default:
+                throw new RuntimeException("Invalid role");
+        }
+
+        session.setUsed(true);
+        passwordResetOtpSessionRepository.save(session);
         return role;
     }
 }

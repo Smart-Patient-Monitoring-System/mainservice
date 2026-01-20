@@ -9,11 +9,12 @@ import lombok.NoArgsConstructor;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class ResetPasswordRequest {
-    @NotBlank(message = "Reset token is required")
-    private String token;
+public class ResetForgotPasswordRequest {
+    @NotBlank(message = "Reset session id is required")
+    private String resetSessionId;
 
     @NotBlank(message = "New password is required")
     @Size(min = 6, message = "Password must be at least 6 characters long")
     private String newPassword;
 }
+

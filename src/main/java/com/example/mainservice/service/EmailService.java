@@ -91,6 +91,30 @@ public class EmailService {
         }
     }
 
+    public void sendPasswordResetOtpEmail(String email, String otp, String displayName) {
+        String subject = "Your Password Reset Code";
+        String body = buildPasswordResetOtpEmailBody(displayName, otp);
+
+        log.info("=== PASSWORD RESET OTP EMAIL ===");
+        log.info("To: {}", email);
+        log.info("Subject: {}", subject);
+        log.info("OTP: {}", otp);
+        log.info("Body:\n{}", body);
+        log.info("===============================");
+
+        try {
+            SimpleMailMessage message = new SimpleMailMessage();
+            message.setTo(email);
+            message.setSubject(subject);
+            message.setText(body);
+            javaMailSender.send(message);
+            log.info("Password reset OTP email sent successfully to: {}", email);
+        } catch (Exception e) {
+            log.error("Failed to send password reset OTP email to: {}", email, e);
+            throw new RuntimeException("Failed to send password reset OTP email", e);
+        }
+    }
+
     private String buildPasswordResetEmailBody(String username, String resetLink, String resetToken) {
         return String.format(
             "Hello %s,\n\n" +
@@ -114,6 +138,20 @@ public class EmailService {
                         "%s\n\n" +
                         "This code will expire in 10 minutes.\n\n" +
                         "If you did not attempt to login, please ignore this email.\n\n" +
+                        "Best regards,\n" +
+                        "Healthcare System",
+                safeName, otp
+        );
+    }
+
+    private String buildPasswordResetOtpEmailBody(String name, String otp) {
+        String safeName = (name == null || name.trim().isEmpty()) ? "User" : name.trim();
+        return String.format(
+                "Hello %s,\n\n" +
+                        "Use the following code to reset your password:\n\n" +
+                        "%s\n\n" +
+                        "This code will expire in 10 minutes.\n\n" +
+                        "If you did not request a password reset, please ignore this email.\n\n" +
                         "Best regards,\n" +
                         "Healthcare System",
                 safeName, otp
