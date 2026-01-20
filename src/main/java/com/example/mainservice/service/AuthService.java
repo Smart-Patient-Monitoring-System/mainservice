@@ -92,6 +92,7 @@ public class AuthService {
         }
     }
 
+    @Transactional
     private AuthResponse startPatientOtpLogin(String email, String rawPassword) {
         Optional<Patient> patientOptional = patientRepo.findByEmail(email);
         if (patientOptional.isEmpty()) {
