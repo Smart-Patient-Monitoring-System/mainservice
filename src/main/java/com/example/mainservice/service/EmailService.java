@@ -1,7 +1,10 @@
 package com.example.mainservice.service;
 
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.mail.SimpleMailMessage;
+import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.stereotype.Service;
 
 /**
@@ -12,10 +15,13 @@ import org.springframework.stereotype.Service;
  */
 @Slf4j
 @Service
+@RequiredArgsConstructor
 public class EmailService {
 
     @Value("${app.frontend.url:http://localhost:5173}")
     private String frontendUrl;
+
+    private final JavaMailSender javaMailSender;
 
     /**
      * Get the password reset link
@@ -39,7 +45,7 @@ public class EmailService {
         String subject = "Password Reset Request";
         String body = buildPasswordResetEmailBody(username, resetLink, resetToken);
         
-        // Log for development (remove in production)
+        // Log for development
         log.info("=== PASSWORD RESET EMAIL ===");
         log.info("To: {}", email);
         log.info("Subject: {}", subject);
@@ -48,9 +54,6 @@ public class EmailService {
         log.info("Body:\n{}", body);
         log.info("===========================");
         
-        // TODO: Uncomment below to send actual email
-        // Uncomment when Spring Mail is configured:
-        /*
         try {
             SimpleMailMessage message = new SimpleMailMessage();
             message.setTo(email);
@@ -62,22 +65,30 @@ public class EmailService {
             log.error("Failed to send password reset email to: {}", email, e);
             throw new RuntimeException("Failed to send password reset email", e);
         }
-        */
     }
 
     public void sendLoginOtpEmail(String email, String otp, String displayName) {
         String subject = "Your Login Verification Code";
         String body = buildLoginOtpEmailBody(displayName, otp);
 
-        // Log for development (remove in production)
+        // Log for development
         log.info("=== LOGIN OTP EMAIL ===");
         log.info("To: {}", email);
         log.info("Subject: {}", subject);
         log.info("OTP: {}", otp);
         log.info("Body:\n{}", body);
         log.info("=======================");
-
-        // TODO: Configure Spring Mail and send real email in production
+        try {
+            SimpleMailMessage message = new SimpleMailMessage();
+            message.setTo(email);
+            message.setSubject(subject);
+            message.setText(body);
+            javaMailSender.send(message);
+            log.info("Login OTP email sent successfully to: {}", email);
+        } catch (Exception e) {
+            log.error("Failed to send login OTP email to: {}", email, e);
+            throw new RuntimeException("Failed to send login OTP email", e);
+        }
     }
 
     private String buildPasswordResetEmailBody(String username, String resetLink, String resetToken) {
