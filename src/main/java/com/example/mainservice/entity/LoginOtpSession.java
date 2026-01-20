@@ -24,6 +24,11 @@ public class LoginOtpSession {
     @Column(nullable = false)
     private Long patientId;
 
+    // Role for which this OTP session was created (PATIENT / DOCTOR / ADMIN)
+    // Nullable for backward-compatible schema updates.
+    @Column(length = 16)
+    private String role;
+
     @Column(nullable = false, length = 255)
     private String otpHash;
 

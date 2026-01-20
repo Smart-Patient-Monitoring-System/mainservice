@@ -11,5 +11,8 @@ public interface LoginOtpSessionRepository extends JpaRepository<LoginOtpSession
 
     @Transactional
     void deleteByPatientId(Long patientId);
+
+    @Transactional
+    void deleteByPatientIdAndRole(Long patientId, String role);
 }
 

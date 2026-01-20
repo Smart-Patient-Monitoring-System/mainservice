@@ -67,6 +67,10 @@ public class AuthService {
             if ("ADMIN".equals(requestedRole)) {
                 return startAdminOtpLogin(email, loginRequest.getPassword());
             }
+            
+            if ("DOCTOR".equals(requestedRole)) {
+                return startDoctorOtpLogin(email, loginRequest.getPassword());
+            }
 
             Authentication authentication = authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(
@@ -112,7 +116,7 @@ public class AuthService {
         }
 
         // Allow only one active OTP session per patient (simple + safe)
-        loginOtpSessionRepository.deleteByPatientId(patient.getId());
+        loginOtpSessionRepository.deleteByPatientIdAndRole(patient.getId(), "PATIENT");
 
         String otp = generateOtp6();
         String sessionId = UUID.randomUUID().toString();
@@ -120,6 +124,7 @@ public class AuthService {
         LoginOtpSession session = LoginOtpSession.builder()
                 .sessionId(sessionId)
                 .patientId(patient.getId())
+                .role("PATIENT")
                 .otpHash(passwordEncoder.encode(otp))
                 .expiresAt(LocalDateTime.now().plusMinutes(10))
                 .attempts(0)
@@ -153,7 +158,7 @@ public class AuthService {
         }
 
         // Allow only one active OTP session per admin (simple + safe)
-        loginOtpSessionRepository.deleteByPatientId(admin.getId());
+        loginOtpSessionRepository.deleteByPatientIdAndRole(admin.getId(), "ADMIN");
 
         String otp = generateOtp6();
         String sessionId = UUID.randomUUID().toString();
@@ -161,6 +166,7 @@ public class AuthService {
         LoginOtpSession session = LoginOtpSession.builder()
                 .sessionId(sessionId)
                 .patientId(admin.getId()) // Reusing patientId field for admin ID
+                .role("ADMIN")
                 .otpHash(passwordEncoder.encode(otp))
                 .expiresAt(LocalDateTime.now().plusMinutes(10))
                 .attempts(0)
@@ -178,6 +184,48 @@ public class AuthService {
                 .email(admin.getEmail())
                 .role("ADMIN")
                 .name(admin.getName())
+                .build();
+    }
+
+    @Transactional
+    private AuthResponse startDoctorOtpLogin(String email, String rawPassword) {
+        Optional<Doctor> doctorOptional = doctorRepo.findByEmail(email);
+        if (doctorOptional.isEmpty()) {
+            throw new RuntimeException("Invalid email or password");
+        }
+        Doctor doctor = doctorOptional.get();
+
+        if (!passwordEncoder.matches(rawPassword, doctor.getPassword())) {
+            throw new RuntimeException("Invalid email or password");
+        }
+
+        // Allow only one active OTP session per doctor
+        loginOtpSessionRepository.deleteByPatientIdAndRole(doctor.getId(), "DOCTOR");
+
+        String otp = generateOtp6();
+        String sessionId = UUID.randomUUID().toString();
+
+        LoginOtpSession session = LoginOtpSession.builder()
+                .sessionId(sessionId)
+                .patientId(doctor.getId()) // Reusing patientId field for doctor ID
+                .role("DOCTOR")
+                .otpHash(passwordEncoder.encode(otp))
+                .expiresAt(LocalDateTime.now().plusMinutes(10))
+                .attempts(0)
+                .used(false)
+                .createdAt(LocalDateTime.now())
+                .build();
+
+        loginOtpSessionRepository.save(session);
+        emailService.sendLoginOtpEmail(doctor.getEmail(), otp, doctor.getName());
+
+        return AuthResponse.builder()
+                .otpRequired(true)
+                .loginSessionId(sessionId)
+                .username(doctor.getUsername())
+                .email(doctor.getEmail())
+                .role("DOCTOR")
+                .name(doctor.getName())
                 .build();
     }
 
@@ -206,10 +254,13 @@ public class AuthService {
         session.setUsed(true);
         loginOtpSessionRepository.save(session);
 
-        // Try to find as Patient first
-        Optional<Patient> patientOptional = patientRepo.findById(session.getPatientId());
-        if (patientOptional.isPresent()) {
-            Patient patient = patientOptional.get();
+        String role = (session.getRole() == null || session.getRole().trim().isEmpty())
+                ? "PATIENT"
+                : session.getRole().toUpperCase().trim();
+
+        if ("PATIENT".equals(role)) {
+            Patient patient = patientRepo.findById(session.getPatientId())
+                    .orElseThrow(() -> new RuntimeException("Patient not found"));
             CustomUserDetails userDetails = new CustomUserDetails(
                     patient.getId(),
                     patient.getUsername(),
@@ -228,10 +279,9 @@ public class AuthService {
                     .build();
         }
 
-        // If not patient, try as Admin
-        Optional<Admin> adminOptional = adminRepo.findById(session.getPatientId());
-        if (adminOptional.isPresent()) {
-            Admin admin = adminOptional.get();
+        if ("ADMIN".equals(role)) {
+            Admin admin = adminRepo.findById(session.getPatientId())
+                    .orElseThrow(() -> new RuntimeException("Admin not found"));
             CustomUserDetails userDetails = new CustomUserDetails(
                     admin.getId(),
                     admin.getUsername(),
@@ -250,7 +300,28 @@ public class AuthService {
                     .build();
         }
 
-        throw new RuntimeException("User not found");
+        if ("DOCTOR".equals(role)) {
+            Doctor doctor = doctorRepo.findById(session.getPatientId())
+                    .orElseThrow(() -> new RuntimeException("Doctor not found"));
+            CustomUserDetails userDetails = new CustomUserDetails(
+                    doctor.getId(),
+                    doctor.getUsername(),
+                    doctor.getPassword(),
+                    doctor.getEmail(),
+                    doctor.getName(),
+                    "DOCTOR"
+            );
+            String token = jwtUtil.generateToken(userDetails, "DOCTOR");
+            return AuthResponse.builder()
+                    .token(token)
+                    .username(doctor.getUsername())
+                    .email(doctor.getEmail())
+                    .role("DOCTOR")
+                    .name(doctor.getName())
+                    .build();
+        }
+
+        throw new RuntimeException("Invalid role for OTP session");
     }
 
     private static final SecureRandom OTP_RANDOM = new SecureRandom();
