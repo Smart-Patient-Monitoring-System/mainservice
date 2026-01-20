@@ -338,12 +338,11 @@ public class AuthService {
         // Build reset link
         String resetLink = emailService.getResetLink(resetToken, role);
 
-        // Return response with token and link for development use
-        // In production, remove resetToken and resetLink from response
+        // For security, do not return resetToken/resetLink to the client.
         return ForgotPasswordResponse.builder()
                 .message("Password reset link has been sent to your email. Please check your inbox.")
-                .resetToken(resetToken) // For development - remove in production
-                .resetLink(resetLink)   // For development - remove in production
+                .resetToken(null)
+                .resetLink(null)
                 .build();
     }
 
@@ -354,6 +353,7 @@ public class AuthService {
     @Transactional
     public String resetPassword(ResetPasswordRequest request) {
         String token = request.getToken().trim();
+        String currentPassword = request.getCurrentPassword();
         String newPassword = request.getNewPassword();
 
         // Validate JWT token (checks expiration and signature)
@@ -392,13 +392,16 @@ public class AuthService {
             // But log a warning
         }
 
-        // Update password based on role
+        // Update password based on role (also validate current password)
         String encodedPassword = passwordEncoder.encode(newPassword);
 
         switch (role) {
             case "PATIENT":
                 Patient patient = patientRepo.findByUsername(username)
                         .orElseThrow(() -> new RuntimeException("Patient not found"));
+                if (!passwordEncoder.matches(currentPassword, patient.getPassword())) {
+                    throw new RuntimeException("Current password is incorrect");
+                }
                 patient.setPassword(encodedPassword);
                 patientRepo.save(patient);
                 break;
@@ -406,6 +409,9 @@ public class AuthService {
             case "DOCTOR":
                 Doctor doctor = doctorRepo.findByUsername(username)
                         .orElseThrow(() -> new RuntimeException("Doctor not found"));
+                if (!passwordEncoder.matches(currentPassword, doctor.getPassword())) {
+                    throw new RuntimeException("Current password is incorrect");
+                }
                 doctor.setPassword(encodedPassword);
                 doctorRepo.save(doctor);
                 break;
@@ -413,6 +419,9 @@ public class AuthService {
             case "ADMIN":
                 Admin admin = adminRepo.findByUsername(username)
                         .orElseThrow(() -> new RuntimeException("Admin not found"));
+                if (!passwordEncoder.matches(currentPassword, admin.getPassword())) {
+                    throw new RuntimeException("Current password is incorrect");
+                }
                 admin.setPassword(encodedPassword);
                 adminRepo.save(admin);
                 break;
