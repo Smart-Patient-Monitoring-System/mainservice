@@ -1,10 +1,13 @@
 package com.example.mainservice.service;
 
 import com.example.mainservice.dto.ChatMessageDTO;
+import com.example.mainservice.dto.DoctorSearchDTO;
 import com.example.mainservice.entity.ChatMessage;
 import com.example.mainservice.entity.Conversation;
+import com.example.mainservice.entity.Doctor;
 import com.example.mainservice.repository.ChatMessageRepository;
 import com.example.mainservice.repository.ConversationRepository;
+import com.example.mainservice.repository.DoctorRepo;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -12,6 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -20,15 +24,16 @@ public class ChatService {
 
     private final ChatMessageRepository chatMessageRepository;
     private final ConversationRepository conversationRepository;
+    private final DoctorRepo doctorRepo; // ADD THIS
+
+    // ========== EXISTING METHODS (Keep as is) ==========
 
     @Transactional
     public ChatMessage saveMessage(ChatMessageDTO messageDTO) {
-        // Verify conversation exists
         Conversation conversation = conversationRepository
                 .findById(messageDTO.getConversationId())
                 .orElseThrow(() -> new RuntimeException("Conversation not found"));
 
-        // Create and save message
         ChatMessage chatMessage = ChatMessage.builder()
                 .conversation(conversation)
                 .senderId(messageDTO.getSenderId())
@@ -41,7 +46,6 @@ public class ChatService {
 
         ChatMessage savedMessage = chatMessageRepository.save(chatMessage);
 
-        // Update conversation's last message
         conversation.setLastMessage(messageDTO.getContent());
         conversation.setTimestamp(LocalDateTime.now());
         conversationRepository.save(conversation);
@@ -69,38 +73,109 @@ public class ChatService {
         return chatMessageRepository.countByConversationIdAndReceiverIdAndReadFalse(conversationId, userId);
     }
 
-    // ========== MISSING METHODS - ADD THESE ==========
-
-    /**
-     * Get all conversations for a specific user (as patient or doctor)
-     */
     public List<Conversation> getUserConversations(Integer userId) {
         return conversationRepository.findAllByUserId(userId);
     }
 
-    /**
-     * Create a new conversation between patient and doctor
-     */
     @Transactional
-    public Conversation createConversation(Integer patientId, Integer doctorId) {
+    public Conversation createConversation(Integer patientId, Long doctorId) {
         // Check if conversation already exists
-        return conversationRepository.findByPatientIdAndDoctorId(patientId, doctorId)
+        return conversationRepository.findByPatientIdAndDoctorId(patientId, doctorId.intValue())
                 .orElseGet(() -> {
                     log.info("Creating new conversation between patient {} and doctor {}", patientId, doctorId);
                     Conversation newConversation = Conversation.builder()
                             .patientId(patientId)
-                            .doctorId(doctorId)
+                            .doctorId(doctorId.intValue())
                             .timestamp(LocalDateTime.now())
                             .build();
                     return conversationRepository.save(newConversation);
                 });
     }
 
-    /**
-     * Get total unread message count for a user across all conversations
-     */
     public Integer getTotalUnreadCount(Integer userId) {
         Integer count = chatMessageRepository.countByReceiverIdAndReadFalse(userId);
         return count != null ? count : 0;
+    }
+
+    // ========== NEW METHODS FOR DOCTOR SEARCH ==========
+
+    /**
+     * Search for doctors by name or registration number
+     * Used by patients to find doctors to message
+     */
+    public List<DoctorSearchDTO> searchDoctors(String searchTerm) {
+        log.info("Searching for doctors with term: {}", searchTerm);
+
+        List<Doctor> doctors;
+
+        if (searchTerm == null || searchTerm.trim().isEmpty()) {
+            // If no search term, return all doctors
+            doctors = doctorRepo.findAll();
+        } else {
+            // Search by name OR doctor registration number
+            doctors = doctorRepo.findByNameContainingIgnoreCaseOrDoctorRegNoContaining(
+                    searchTerm.trim(),
+                    searchTerm.trim()
+            );
+        }
+
+        // Convert to DTOs (without sensitive information like passwords)
+        return doctors.stream()
+                .map(this::convertToDoctorSearchDTO)
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Get all available doctors for messaging
+     */
+    public List<DoctorSearchDTO> getAllDoctors() {
+        log.info("Fetching all doctors for chat");
+
+        List<Doctor> doctors = doctorRepo.findAll();
+
+        return doctors.stream()
+                .map(this::convertToDoctorSearchDTO)
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Get a specific doctor by ID
+     */
+    public DoctorSearchDTO getDoctorById(Long doctorId) {
+        Doctor doctor = doctorRepo.findById(doctorId)
+                .orElseThrow(() -> new RuntimeException("Doctor not found with ID: " + doctorId));
+
+        return convertToDoctorSearchDTO(doctor);
+    }
+
+    /**
+     * Search doctors by hospital
+     */
+    public List<DoctorSearchDTO> searchDoctorsByHospital(String hospital) {
+        log.info("Searching doctors by hospital: {}", hospital);
+
+        List<Doctor> doctors = doctorRepo.findByHospitalContainingIgnoreCase(hospital);
+
+        return doctors.stream()
+                .map(this::convertToDoctorSearchDTO)
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Helper method to convert Doctor entity to DoctorSearchDTO
+     * This removes sensitive information like passwords
+     */
+    private DoctorSearchDTO convertToDoctorSearchDTO(Doctor doctor) {
+        return DoctorSearchDTO.builder()
+                .id(doctor.getId())
+                .name(doctor.getName())
+                .doctorRegNo(doctor.getDoctorRegNo())
+                .hospital(doctor.getHospital())
+                .position(doctor.getPosition())
+                .email(doctor.getEmail())
+                .contactNo(doctor.getContactNo())
+                // Add profile picture when you implement it
+                // .profilePicture(doctor.getProfilePicture())
+                .build();
     }
 }

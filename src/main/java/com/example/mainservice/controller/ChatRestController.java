@@ -2,12 +2,14 @@ package com.example.mainservice.controller;
 
 import com.example.mainservice.dto.ChatMessageDTO;
 import com.example.mainservice.dto.ConversationDTO;
+import com.example.mainservice.dto.DoctorSearchDTO;
 import com.example.mainservice.entity.ChatMessage;
 import com.example.mainservice.entity.Conversation;
 import com.example.mainservice.entity.User;
 import com.example.mainservice.repository.UserRepository;
 import com.example.mainservice.service.ChatService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
@@ -19,14 +21,14 @@ import java.util.stream.Collectors;
 @RequestMapping("/api/chat")
 @RequiredArgsConstructor
 @CrossOrigin(origins = "*") // Configure properly for production
+@Slf4j
 public class ChatRestController {
 
     private final ChatService chatService;
-    private final UserRepository userRepository; // Add this
+    private final UserRepository userRepository;
 
-    /**
-     * Get all conversations for the current user
-     */
+    // ========== EXISTING ENDPOINTS (Keep as is) ==========
+
     @GetMapping("/conversations")
     public ResponseEntity<List<ConversationDTO>> getConversations(Authentication authentication) {
         Integer userId = getCurrentUserId(authentication);
@@ -39,9 +41,6 @@ public class ChatRestController {
         return ResponseEntity.ok(conversationDTOs);
     }
 
-    /**
-     * Get all messages in a conversation
-     */
     @GetMapping("/conversations/{conversationId}/messages")
     public ResponseEntity<List<ChatMessageDTO>> getMessages(
             @PathVariable Long conversationId,
@@ -57,9 +56,6 @@ public class ChatRestController {
         return ResponseEntity.ok(messageDTOs);
     }
 
-    /**
-     * Mark messages as read
-     */
     @PostMapping("/conversations/{conversationId}/read")
     public ResponseEntity<Void> markAsRead(
             @PathVariable Long conversationId,
@@ -71,9 +67,6 @@ public class ChatRestController {
         return ResponseEntity.ok().build();
     }
 
-    /**
-     * Create a new conversation
-     */
     @PostMapping("/conversations")
     public ResponseEntity<ConversationDTO> createConversation(
             @RequestBody ConversationDTO conversationDTO,
@@ -81,18 +74,14 @@ public class ChatRestController {
 
         Integer userId = getCurrentUserId(authentication);
 
-        // Get patient and doctor IDs from the DTO's UserInfo objects
         Integer patientId = conversationDTO.getPatient().getId();
         Integer doctorId = conversationDTO.getDoctor().getId();
 
-        Conversation conversation = chatService.createConversation(patientId, doctorId);
+        Conversation conversation = chatService.createConversation(patientId, Long.valueOf(doctorId));
 
         return ResponseEntity.ok(mapToConversationDTO(conversation, userId));
     }
 
-    /**
-     * Get unread message count
-     */
     @GetMapping("/unread-count")
     public ResponseEntity<Integer> getUnreadCount(Authentication authentication) {
         Integer userId = getCurrentUserId(authentication);
@@ -100,10 +89,84 @@ public class ChatRestController {
         return ResponseEntity.ok(count);
     }
 
-    // Helper methods
+    // ========== NEW ENDPOINTS FOR DOCTOR SEARCH ==========
+
+    /**
+     * Search for doctors by name or registration number
+     * GET /api/chat/doctors/search?query=john
+     * GET /api/chat/doctors/search?query=D001
+     */
+    @GetMapping("/doctors/search")
+    public ResponseEntity<List<DoctorSearchDTO>> searchDoctors(
+            @RequestParam(required = false) String query) {
+
+        log.info("Search request received with query: {}", query);
+        List<DoctorSearchDTO> doctors = chatService.searchDoctors(query);
+
+        return ResponseEntity.ok(doctors);
+    }
+
+    /**
+     * Get all doctors (for initial display)
+     * GET /api/chat/doctors
+     */
+    @GetMapping("/doctors")
+    public ResponseEntity<List<DoctorSearchDTO>> getAllDoctors() {
+        log.info("Fetching all doctors");
+        List<DoctorSearchDTO> doctors = chatService.getAllDoctors();
+
+        return ResponseEntity.ok(doctors);
+    }
+
+    /**
+     * Get a specific doctor by ID
+     * GET /api/chat/doctors/123
+     */
+    @GetMapping("/doctors/{doctorId}")
+    public ResponseEntity<DoctorSearchDTO> getDoctorById(@PathVariable Long doctorId) {
+        log.info("Fetching doctor with ID: {}", doctorId);
+        DoctorSearchDTO doctor = chatService.getDoctorById(doctorId);
+
+        return ResponseEntity.ok(doctor);
+    }
+
+    /**
+     * Search doctors by hospital
+     * GET /api/chat/doctors/hospital?name=Nawaloka
+     */
+    @GetMapping("/doctors/hospital")
+    public ResponseEntity<List<DoctorSearchDTO>> searchDoctorsByHospital(
+            @RequestParam String name) {
+
+        log.info("Searching doctors by hospital: {}", name);
+        List<DoctorSearchDTO> doctors = chatService.searchDoctorsByHospital(name);
+
+        return ResponseEntity.ok(doctors);
+    }
+
+    /**
+     * Start a conversation with a specific doctor
+     * POST /api/chat/conversations/start?doctorId=123
+     */
+    @PostMapping("/conversations/start")
+    public ResponseEntity<ConversationDTO> startConversationWithDoctor(
+            @RequestParam Long doctorId,
+            Authentication authentication) {
+
+        Integer patientId = getCurrentUserId(authentication);
+
+        log.info("Patient {} starting conversation with doctor {}", patientId, doctorId);
+
+        // Create or get existing conversation
+        Conversation conversation = chatService.createConversation(patientId, doctorId);
+
+        return ResponseEntity.ok(mapToConversationDTO(conversation, patientId));
+    }
+
+    // ========== HELPER METHODS ==========
+
     private Integer getCurrentUserId(Authentication authentication) {
         if (authentication != null && authentication.getPrincipal() != null) {
-            // Adjust this based on your User entity structure
             return Integer.parseInt(authentication.getName());
         }
         throw new RuntimeException("User not authenticated");
@@ -115,40 +178,35 @@ public class ChatRestController {
         dto.setLastMessage(conv.getLastMessage());
         dto.setTimestamp(conv.getTimestamp());
 
-        // Fetch patient details
         User patient = userRepository.findById(conv.getPatientId())
                 .orElse(null);
 
-        // Fetch doctor details
         User doctor = userRepository.findById(conv.getDoctorId())
                 .orElse(null);
 
-        // Set patient info
         if (patient != null) {
             dto.setPatient(new ConversationDTO.UserInfo(
                     patient.getId(),
                     patient.getName(),
-                    patient.getProfilePicture(), // or getAvatar() - adjust based on your User entity
-                    false, // You can implement online status tracking
+                    patient.getProfilePicture(),
+                    false,
                     "Patient"
             ));
         }
 
-        // Set doctor info
         if (doctor != null) {
             dto.setDoctor(new ConversationDTO.UserInfo(
                     doctor.getId(),
                     doctor.getName(),
-                    doctor.getProfilePicture(), // or getAvatar() - adjust based on your User entity
-                    false, // You can implement online status tracking
+                    doctor.getProfilePicture(),
+                    false,
                     doctor.getRole() != null ? doctor.getRole().toString() : "Doctor"
             ));
         }
 
-        // Calculate unread count
         Integer unreadCount = chatService.getUnreadCount(conv.getId(), currentUserId);
         dto.setUnreadCount(unreadCount);
-        dto.setOnline(false); // Implement online status if needed
+        dto.setOnline(false);
 
         return dto;
     }
