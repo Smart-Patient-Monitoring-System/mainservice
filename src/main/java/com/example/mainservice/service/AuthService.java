@@ -63,6 +63,10 @@ public class AuthService {
             if ("PATIENT".equals(requestedRole)) {
                 return startPatientOtpLogin(email, loginRequest.getPassword());
             }
+            
+            if ("ADMIN".equals(requestedRole)) {
+                return startAdminOtpLogin(email, loginRequest.getPassword());
+            }
 
             Authentication authentication = authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(
@@ -136,6 +140,47 @@ public class AuthService {
                 .build();
     }
 
+    @Transactional
+    private AuthResponse startAdminOtpLogin(String email, String rawPassword) {
+        Optional<Admin> adminOptional = adminRepo.findByEmail(email);
+        if (adminOptional.isEmpty()) {
+            throw new RuntimeException("Invalid email or password");
+        }
+        Admin admin = adminOptional.get();
+
+        if (!passwordEncoder.matches(rawPassword, admin.getPassword())) {
+            throw new RuntimeException("Invalid email or password");
+        }
+
+        // Allow only one active OTP session per admin (simple + safe)
+        loginOtpSessionRepository.deleteByPatientId(admin.getId());
+
+        String otp = generateOtp6();
+        String sessionId = UUID.randomUUID().toString();
+
+        LoginOtpSession session = LoginOtpSession.builder()
+                .sessionId(sessionId)
+                .patientId(admin.getId()) // Reusing patientId field for admin ID
+                .otpHash(passwordEncoder.encode(otp))
+                .expiresAt(LocalDateTime.now().plusMinutes(10))
+                .attempts(0)
+                .used(false)
+                .createdAt(LocalDateTime.now())
+                .build();
+
+        loginOtpSessionRepository.save(session);
+        emailService.sendLoginOtpEmail(admin.getEmail(), otp, admin.getName());
+
+        return AuthResponse.builder()
+                .otpRequired(true)
+                .loginSessionId(sessionId)
+                .username(admin.getUsername())
+                .email(admin.getEmail())
+                .role("ADMIN")
+                .name(admin.getName())
+                .build();
+    }
+
     public AuthResponse verifyPatientLoginOtp(String loginSessionId, String otp) {
         LoginOtpSession session = loginOtpSessionRepository.findBySessionId(loginSessionId)
                 .orElseThrow(() -> new RuntimeException("Invalid or expired OTP session"));
@@ -161,27 +206,51 @@ public class AuthService {
         session.setUsed(true);
         loginOtpSessionRepository.save(session);
 
-        Patient patient = patientRepo.findById(session.getPatientId())
-                .orElseThrow(() -> new RuntimeException("Patient not found"));
+        // Try to find as Patient first
+        Optional<Patient> patientOptional = patientRepo.findById(session.getPatientId());
+        if (patientOptional.isPresent()) {
+            Patient patient = patientOptional.get();
+            CustomUserDetails userDetails = new CustomUserDetails(
+                    patient.getId(),
+                    patient.getUsername(),
+                    patient.getPassword(),
+                    patient.getEmail(),
+                    patient.getName(),
+                    "PATIENT"
+            );
+            String token = jwtUtil.generateToken(userDetails, "PATIENT");
+            return AuthResponse.builder()
+                    .token(token)
+                    .username(patient.getUsername())
+                    .email(patient.getEmail())
+                    .role("PATIENT")
+                    .name(patient.getName())
+                    .build();
+        }
 
-        CustomUserDetails userDetails = new CustomUserDetails(
-                patient.getId(),
-                patient.getUsername(),
-                patient.getPassword(),
-                patient.getEmail(),
-                patient.getName(),
-                "PATIENT"
-        );
+        // If not patient, try as Admin
+        Optional<Admin> adminOptional = adminRepo.findById(session.getPatientId());
+        if (adminOptional.isPresent()) {
+            Admin admin = adminOptional.get();
+            CustomUserDetails userDetails = new CustomUserDetails(
+                    admin.getId(),
+                    admin.getUsername(),
+                    admin.getPassword(),
+                    admin.getEmail(),
+                    admin.getName(),
+                    "ADMIN"
+            );
+            String token = jwtUtil.generateToken(userDetails, "ADMIN");
+            return AuthResponse.builder()
+                    .token(token)
+                    .username(admin.getUsername())
+                    .email(admin.getEmail())
+                    .role("ADMIN")
+                    .name(admin.getName())
+                    .build();
+        }
 
-        String token = jwtUtil.generateToken(userDetails, "PATIENT");
-
-        return AuthResponse.builder()
-                .token(token)
-                .username(patient.getUsername())
-                .email(patient.getEmail())
-                .role("PATIENT")
-                .name(patient.getName())
-                .build();
+        throw new RuntimeException("User not found");
     }
 
     private static final SecureRandom OTP_RANDOM = new SecureRandom();
