@@ -6,6 +6,7 @@ import com.example.mainservice.dto.ForgotPasswordResponse;
 import com.example.mainservice.dto.LoginRequest;
 import com.example.mainservice.dto.ResetPasswordRequest;
 import com.example.mainservice.dto.SignupRequest;
+import com.example.mainservice.dto.VerifyLoginOtpRequest;
 import com.example.mainservice.service.AuthService;
 import jakarta.validation.Valid;
 import lombok.AllArgsConstructor;
@@ -37,7 +38,7 @@ public class AuthController {
             // Handle authentication failures (wrong username/password)
             // This must be caught before Exception since it extends Exception
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(new ErrorResponse("Invalid username or password"));
+                    .body(new ErrorResponse("Invalid email or password"));
         } catch (RuntimeException e) {
             // Handle role mismatch or other runtime exceptions
             // Return 400 Bad Request for role/validation errors, 403 for access denied
@@ -49,7 +50,24 @@ public class AuthController {
         } catch (Exception e) {
             // Handle other exceptions
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(new ErrorResponse("Invalid username or password"));
+                    .body(new ErrorResponse("Invalid email or password"));
+        }
+    }
+
+    @PostMapping("/login/verify-otp")
+    public ResponseEntity<?> verifyPatientLoginOtp(@Valid @RequestBody VerifyLoginOtpRequest request) {
+        try {
+            AuthResponse response = authService.verifyPatientLoginOtp(
+                    request.getLoginSessionId(),
+                    request.getOtp()
+            );
+            return ResponseEntity.ok(response);
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(new ErrorResponse(e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new ErrorResponse("An error occurred during OTP verification"));
         }
     }
 

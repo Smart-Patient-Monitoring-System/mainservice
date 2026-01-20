@@ -62,6 +62,7 @@ public class PatientService {
                 .medicalConditions(patient.getMedicalConditions())
                 .allergies(patient.getAllergies())
                 .currentMedications(patient.getCurrentMedications())
+                .pastSurgeries(patient.getPastSurgeries())
                 .emergencyNotes(patient.getEmergencyNotes())
                 .build();
         Patient savedPatient = patientrepo.save(p);
@@ -99,6 +100,7 @@ public class PatientService {
                 .medicalConditions(p.getMedicalConditions())
                 .allergies(p.getAllergies())
                 .currentMedications(p.getCurrentMedications())
+                .pastSurgeries(p.getPastSurgeries())
                 .emergencyNotes(p.getEmergencyNotes())
                 .build()).toList();
     }
@@ -143,6 +145,7 @@ public class PatientService {
         if (dto.getMedicalConditions() != null) p.setMedicalConditions(dto.getMedicalConditions());
         if (dto.getAllergies() != null) p.setAllergies(dto.getAllergies());
         if (dto.getCurrentMedications() != null) p.setCurrentMedications(dto.getCurrentMedications());
+        if (dto.getPastSurgeries() != null) p.setPastSurgeries(dto.getPastSurgeries());
         if (dto.getEmergencyNotes() != null) p.setEmergencyNotes(dto.getEmergencyNotes());
 
         Patient updatedPatient = patientrepo.save(p);
@@ -178,6 +181,7 @@ public class PatientService {
         dto.setMedicalConditions(patient.getMedicalConditions());
         dto.setAllergies(patient.getAllergies());
         dto.setCurrentMedications(patient.getCurrentMedications());
+        dto.setPastSurgeries(patient.getPastSurgeries());
         dto.setEmergencyNotes(patient.getEmergencyNotes());
         return dto;
     }

@@ -8,12 +8,14 @@ import com.example.mainservice.dto.ResetPasswordRequest;
 import com.example.mainservice.dto.SignupRequest;
 import com.example.mainservice.entity.Admin;
 import com.example.mainservice.entity.Doctor;
+import com.example.mainservice.entity.LoginOtpSession;
 import com.example.mainservice.entity.PasswordResetToken;
 import com.example.mainservice.entity.Patient;
 
 import java.util.List;
 import com.example.mainservice.repository.AdminRepo;
 import com.example.mainservice.repository.DoctorRepo;
+import com.example.mainservice.repository.LoginOtpSessionRepository;
 import com.example.mainservice.repository.PasswordResetTokenRepository;
 import com.example.mainservice.repository.PatientRepo;
 import com.example.mainservice.security.CustomUserDetails;
@@ -22,13 +24,14 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.security.SecureRandom;
 import java.util.Optional;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -39,6 +42,7 @@ public class AuthService {
     private final DoctorRepo doctorRepo;
     private final AdminRepo adminRepo;
     private final PasswordResetTokenRepository passwordResetTokenRepository;
+    private final LoginOtpSessionRepository loginOtpSessionRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtUtil jwtUtil;
     private final EmailService emailService;
@@ -50,12 +54,16 @@ public class AuthService {
         }
 
         String requestedRole = loginRequest.getRole().toUpperCase().trim();
-        String username = loginRequest.getUsername().trim();
+        String email = loginRequest.getEmail().trim();
 
         try {
+            if ("PATIENT".equals(requestedRole)) {
+                return startPatientOtpLogin(email, loginRequest.getPassword());
+            }
+
             Authentication authentication = authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(
-                            username,
+                            email,
                             loginRequest.getPassword()
                     )
             );
@@ -64,7 +72,7 @@ public class AuthService {
 
             // Validate that the user's role matches the requested role
             String userRole = userDetails.getRole().toUpperCase();
-            
+
             if (!requestedRole.equals(userRole)) {
                 throw new RuntimeException("Invalid role. This account is registered as " + userRole + ", not " + requestedRole + ". Please login as " + userRole);
             }
@@ -79,32 +87,104 @@ public class AuthService {
                     .name(userDetails.getDisplayName())
                     .build();
         } catch (org.springframework.security.core.AuthenticationException e) {
-            // Check if user exists but with wrong role or password
-            // Try exact match first
-            boolean patientExists = patientRepo.findByUsername(username).isPresent();
-            boolean doctorExists = doctorRepo.findByUsername(username).isPresent();
-            boolean adminExists = adminRepo.findByUsername(username).isPresent();
-            
-            // If not found with exact match, try case-insensitive search
-            if (!patientExists && "PATIENT".equals(requestedRole)) {
-                List<Patient> allPatients = patientRepo.findAll();
-                for (Patient p : allPatients) {
-                    if (p.getUsername() != null && p.getUsername().equalsIgnoreCase(username)) {
-                        // Found with different case - password might be wrong or case issue
-                        throw new RuntimeException("Username found but case doesn't match. Database has: '" + p.getUsername() + "', you entered: '" + username + "'. Please use exact username: '" + p.getUsername() + "'");
-                    }
-                }
-            }
-            
-            if (!patientExists && !doctorExists && !adminExists) {
-                throw new RuntimeException("No account found with username: '" + username + "'. Please check your username (case-sensitive) or sign up.");
-            } else if ("PATIENT".equals(requestedRole) && !patientExists) {
-                String actualRole = doctorExists ? "DOCTOR" : (adminExists ? "ADMIN" : "UNKNOWN");
-                throw new RuntimeException("Username exists but is registered as " + actualRole + ", not PATIENT. Please login as " + actualRole);
-            } else {
-                throw new RuntimeException("Invalid password for username: " + username);
-            }
+            // Keep error responses simple (avoid user enumeration)
+            throw new RuntimeException("Invalid email or password");
         }
+    }
+
+    private AuthResponse startPatientOtpLogin(String email, String rawPassword) {
+        Optional<Patient> patientOptional = patientRepo.findByEmail(email);
+        if (patientOptional.isEmpty()) {
+            throw new RuntimeException("Invalid email or password");
+        }
+        Patient patient = patientOptional.get();
+
+        if (!passwordEncoder.matches(rawPassword, patient.getPassword())) {
+            throw new RuntimeException("Invalid email or password");
+        }
+
+        // Allow only one active OTP session per patient (simple + safe)
+        loginOtpSessionRepository.deleteByPatientId(patient.getId());
+
+        String otp = generateOtp6();
+        String sessionId = UUID.randomUUID().toString();
+
+        LoginOtpSession session = LoginOtpSession.builder()
+                .sessionId(sessionId)
+                .patientId(patient.getId())
+                .otpHash(passwordEncoder.encode(otp))
+                .expiresAt(LocalDateTime.now().plusMinutes(10))
+                .attempts(0)
+                .used(false)
+                .createdAt(LocalDateTime.now())
+                .build();
+
+        loginOtpSessionRepository.save(session);
+        emailService.sendLoginOtpEmail(patient.getEmail(), otp, patient.getName());
+
+        return AuthResponse.builder()
+                .otpRequired(true)
+                .loginSessionId(sessionId)
+                .username(patient.getUsername())
+                .email(patient.getEmail())
+                .role("PATIENT")
+                .name(patient.getName())
+                .build();
+    }
+
+    public AuthResponse verifyPatientLoginOtp(String loginSessionId, String otp) {
+        LoginOtpSession session = loginOtpSessionRepository.findBySessionId(loginSessionId)
+                .orElseThrow(() -> new RuntimeException("Invalid or expired OTP session"));
+
+        if (session.isUsed()) {
+            throw new RuntimeException("OTP already used. Please login again.");
+        }
+        if (LocalDateTime.now().isAfter(session.getExpiresAt())) {
+            throw new RuntimeException("OTP expired. Please login again.");
+        }
+        if (session.getAttempts() >= 5) {
+            throw new RuntimeException("Too many invalid attempts. Please login again.");
+        }
+
+        session.setAttempts(session.getAttempts() + 1);
+
+        boolean ok = passwordEncoder.matches(otp, session.getOtpHash());
+        if (!ok) {
+            loginOtpSessionRepository.save(session);
+            throw new RuntimeException("Invalid OTP");
+        }
+
+        session.setUsed(true);
+        loginOtpSessionRepository.save(session);
+
+        Patient patient = patientRepo.findById(session.getPatientId())
+                .orElseThrow(() -> new RuntimeException("Patient not found"));
+
+        CustomUserDetails userDetails = new CustomUserDetails(
+                patient.getId(),
+                patient.getUsername(),
+                patient.getPassword(),
+                patient.getEmail(),
+                patient.getName(),
+                "PATIENT"
+        );
+
+        String token = jwtUtil.generateToken(userDetails, "PATIENT");
+
+        return AuthResponse.builder()
+                .token(token)
+                .username(patient.getUsername())
+                .email(patient.getEmail())
+                .role("PATIENT")
+                .name(patient.getName())
+                .build();
+    }
+
+    private static final SecureRandom OTP_RANDOM = new SecureRandom();
+
+    private String generateOtp6() {
+        int code = OTP_RANDOM.nextInt(1_000_000);
+        return String.format("%06d", code);
     }
 
     public AuthResponse signup(SignupRequest signupRequest) {
@@ -135,6 +215,10 @@ public class AuthService {
                 .username(signupRequest.getUsername())
                 .password(passwordEncoder.encode(signupRequest.getPassword()))
                 .bloodType(signupRequest.getBloodType())
+                .guardianRelationship(signupRequest.getGuardianType())
+                .allergies(signupRequest.getCurrentAllergies())
+                .currentMedications(signupRequest.getCurrentMedications())
+                .pastSurgeries(signupRequest.getPastSurgeries())
                 .build();
 
         patient = patientRepo.save(patient);

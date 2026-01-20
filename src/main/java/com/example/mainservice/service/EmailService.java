@@ -65,6 +65,21 @@ public class EmailService {
         */
     }
 
+    public void sendLoginOtpEmail(String email, String otp, String displayName) {
+        String subject = "Your Login Verification Code";
+        String body = buildLoginOtpEmailBody(displayName, otp);
+
+        // Log for development (remove in production)
+        log.info("=== LOGIN OTP EMAIL ===");
+        log.info("To: {}", email);
+        log.info("Subject: {}", subject);
+        log.info("OTP: {}", otp);
+        log.info("Body:\n{}", body);
+        log.info("=======================");
+
+        // TODO: Configure Spring Mail and send real email in production
+    }
+
     private String buildPasswordResetEmailBody(String username, String resetLink, String resetToken) {
         return String.format(
             "Hello %s,\n\n" +
@@ -77,6 +92,20 @@ public class EmailService {
             "Best regards,\n" +
             "Healthcare System",
             username, resetLink, resetToken
+        );
+    }
+
+    private String buildLoginOtpEmailBody(String name, String otp) {
+        String safeName = (name == null || name.trim().isEmpty()) ? "User" : name.trim();
+        return String.format(
+                "Hello %s,\n\n" +
+                        "Use the following code to complete your login:\n\n" +
+                        "%s\n\n" +
+                        "This code will expire in 10 minutes.\n\n" +
+                        "If you did not attempt to login, please ignore this email.\n\n" +
+                        "Best regards,\n" +
+                        "Healthcare System",
+                safeName, otp
         );
     }
 }
