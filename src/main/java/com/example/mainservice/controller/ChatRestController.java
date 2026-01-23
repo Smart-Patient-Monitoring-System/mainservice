@@ -14,13 +14,15 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/chat")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "*") // Configure properly for production
+//@CrossOrigin(origins = "*") // Configure properly for production
 @Slf4j
 public class ChatRestController {
 
@@ -145,22 +147,82 @@ public class ChatRestController {
     }
 
     /**
-     * Start a conversation with a specific doctor
-     * POST /api/chat/conversations/start?doctorId=123
+     * Start a conversation - works for both PATIENT→DOCTOR and DOCTOR→PATIENT
+     * POST /api/chat/conversations/start?doctorId=123 (Patient starting chat)
+     * POST /api/chat/conversations/start?patientId=456 (Doctor starting chat)
      */
     @PostMapping("/conversations/start")
-    public ResponseEntity<ConversationDTO> startConversationWithDoctor(
-            @RequestParam Long doctorId,
+    public ResponseEntity<?> startConversation(
+            @RequestParam(required = false) Long doctorId,
+            @RequestParam(required = false) Long patientId,
             Authentication authentication) {
 
-        Integer patientId = getCurrentUserId(authentication);
+        try {
+            log.info("=== START CONVERSATION REQUEST ===");
+            log.info("doctorId parameter: {}", doctorId);
+            log.info("patientId parameter: {}", patientId);
 
-        log.info("Patient {} starting conversation with doctor {}", patientId, doctorId);
+            // Validate that exactly one parameter is provided
+            if (doctorId == null && patientId == null) {
+                log.error("Both doctorId and patientId are null");
+                return ResponseEntity.badRequest()
+                        .body(Map.of("error", "Either doctorId or patientId is required"));
+            }
 
-        // Create or get existing conversation
-        Conversation conversation = chatService.createConversation(patientId, doctorId);
+            if (doctorId != null && patientId != null) {
+                log.error("Both doctorId and patientId provided");
+                return ResponseEntity.badRequest()
+                        .body(Map.of("error", "Provide either doctorId OR patientId, not both"));
+            }
 
-        return ResponseEntity.ok(mapToConversationDTO(conversation, patientId));
+            // Get current user ID from authentication
+            Integer currentUserId;
+            try {
+                currentUserId = getCurrentUserId(authentication);
+                log.info("Current authenticated user ID: {}", currentUserId);
+            } catch (Exception e) {
+                log.error("Authentication failed: {}", e.getMessage());
+                return ResponseEntity.status(401)
+                        .body(Map.of("error", "Authentication required", "details", e.getMessage()));
+            }
+
+            // Determine final patient and doctor IDs
+            Integer finalPatientId;
+            Integer finalDoctorId;
+
+            if (doctorId != null) {
+                // Current user is PATIENT, starting chat with DOCTOR
+                finalPatientId = currentUserId;
+                finalDoctorId = doctorId.intValue();
+                log.info("Patient {} starting chat with Doctor {}", finalPatientId, finalDoctorId);
+            } else {
+                // Current user is DOCTOR, starting chat with PATIENT
+                finalDoctorId = currentUserId;
+                finalPatientId = patientId.intValue();
+                log.info("Doctor {} starting chat with Patient {}", finalDoctorId, finalPatientId);
+            }
+
+            // Create or retrieve existing conversation
+            Conversation conversation = chatService.createConversation(finalPatientId, Long.valueOf(finalDoctorId));
+            log.info("Conversation created/retrieved with ID: {}", conversation.getId());
+
+            // Map to DTO
+            ConversationDTO dto = mapToConversationDTO(conversation, currentUserId);
+
+            log.info("=== CONVERSATION START SUCCESS ===");
+            return ResponseEntity.ok(dto);
+
+        } catch (Exception e) {
+            log.error("=== ERROR STARTING CONVERSATION ===", e);
+            e.printStackTrace();
+
+            return ResponseEntity.status(500)
+                    .body(Map.of(
+                            "error", e.getMessage() != null ? e.getMessage() : "Unknown error",
+                            "type", e.getClass().getSimpleName(),
+                            "timestamp", LocalDateTime.now().toString()
+                    ));
+        }
     }
 
     // ========== HELPER METHODS ==========
