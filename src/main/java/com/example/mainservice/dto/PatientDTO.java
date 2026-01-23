@@ -35,4 +35,19 @@ public class PatientDTO {
     private String password;
 
     private String bloodType;
+
+    //Emergency panel fields
+    private String city;
+    private String district;
+    private String postalCode;
+    private Double latitude;
+    private Double longitude;
+    private String guardianRelationship;
+    private String guardianEmail;
+    private String medicalConditions;
+    private String allergies;
+    private String currentMedications;
+    private String pastSurgeries;
+    private String emergencyNotes;
+
 }

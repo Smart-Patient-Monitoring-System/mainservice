@@ -2,6 +2,7 @@ package com.example.mainservice.dto;
 
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -25,14 +26,37 @@ public class SignupRequest {
     @NotBlank(message = "Name is required")
     private String name;
 
+    @NotNull(message = "Date of Birth is required")
     private LocalDate dateOfBirth;
+    
+    @NotBlank(message = "Address is required")
     private String address;
+    
+    @NotBlank(message = "NIC No is required")
     private String nicNo;
+    
+    @NotBlank(message = "Gender is required")
     private String gender;
+    
+    @NotBlank(message = "Contact No is required")
     private String contactNo;
+    
+    @NotBlank(message = "Guardian Name is required")
     private String guardianName;
+
+    @NotBlank(message = "Guardian Type is required")
+    private String guardianType; // SPOUSE, PARENT, CHILD
+    
+    @NotBlank(message = "Guardian Contact No is required")
     private String guardianContactNo;
+    
+    @NotBlank(message = "Blood Type is required")
     private String bloodType;
+
+    // New medical history fields (optional for signup)
+    private String currentAllergies;
+    private String currentMedications;
+    private String pastSurgeries;
 
     @NotBlank(message = "Role is required")
     private String role; // PATIENT, DOCTOR, NURSE, ADMIN
