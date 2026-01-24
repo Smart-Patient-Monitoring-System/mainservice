@@ -17,7 +17,7 @@ public class AuthResponse {
     private String email;
     private String role;
     private String name;
-
+    private Long patientId;
     // OTP login support (used for PATIENT login step-1 response)
     @Builder.Default
     private boolean otpRequired = false;

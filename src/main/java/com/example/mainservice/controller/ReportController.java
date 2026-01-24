@@ -16,12 +16,12 @@ import java.util.List;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/api/reports")
-@CrossOrigin(
-        origins = "http://localhost:5173",
-        allowedHeaders = "*",
-        methods = {RequestMethod.GET, RequestMethod.POST, RequestMethod.OPTIONS}
-)
+//@RequestMapping("/api/reports")
+//@CrossOrigin(
+//        origins = "http://localhost:5173",
+//        allowedHeaders = "*",
+//        methods = {RequestMethod.GET, RequestMethod.POST, RequestMethod.OPTIONS}
+//)
 public class ReportController {
 
     private static final Logger logger = LoggerFactory.getLogger(ReportController.class);
