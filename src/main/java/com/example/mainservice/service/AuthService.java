@@ -104,7 +104,7 @@ public class AuthService {
     }
 
     @Transactional
-    private AuthResponse startPatientOtpLogin(String email, String rawPassword) {
+    protected AuthResponse startPatientOtpLogin(String email, String rawPassword) {
         Optional<Patient> patientOptional = patientRepo.findByEmail(email);
         if (patientOptional.isEmpty()) {
             throw new RuntimeException("Invalid email or password");
@@ -146,7 +146,7 @@ public class AuthService {
     }
 
     @Transactional
-    private AuthResponse startAdminOtpLogin(String email, String rawPassword) {
+    protected AuthResponse startAdminOtpLogin(String email, String rawPassword) {
         Optional<Admin> adminOptional = adminRepo.findByEmail(email);
         if (adminOptional.isEmpty()) {
             throw new RuntimeException("Invalid email or password");
@@ -188,7 +188,7 @@ public class AuthService {
     }
 
     @Transactional
-    private AuthResponse startDoctorOtpLogin(String email, String rawPassword) {
+    protected AuthResponse startDoctorOtpLogin(String email, String rawPassword) {
         Optional<Doctor> doctorOptional = doctorRepo.findByEmail(email);
         if (doctorOptional.isEmpty()) {
             throw new RuntimeException("Invalid email or password");
