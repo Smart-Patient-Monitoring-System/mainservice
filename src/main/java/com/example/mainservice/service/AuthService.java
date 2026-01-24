@@ -142,6 +142,7 @@ public class AuthService {
                 .email(patient.getEmail())
                 .role("PATIENT")
                 .name(patient.getName())
+                .patientId(patient.getId())
                 .build();
     }
 
@@ -276,6 +277,7 @@ public class AuthService {
                     .email(patient.getEmail())
                     .role("PATIENT")
                     .name(patient.getName())
+                    .patientId(patient.getId())
                     .build();
         }
 
@@ -383,6 +385,7 @@ public class AuthService {
                 .email(patient.getEmail())
                 .role("PATIENT")
                 .name(patient.getName())
+                .patientId(patient.getId())
                 .build();
     }
 
