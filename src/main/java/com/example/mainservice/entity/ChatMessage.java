@@ -23,10 +23,10 @@ public class ChatMessage {
     private Conversation conversation;
 
     @Column(name = "sender_id", nullable = false)
-    private Integer senderId;
+    private Long senderId;
 
     @Column(name = "receiver_id", nullable = false)
-    private Integer receiverId;
+    private Long receiverId;
 
     @Column(name = "content", columnDefinition = "TEXT")
     private String content;
