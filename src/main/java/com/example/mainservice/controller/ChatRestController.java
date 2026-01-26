@@ -3,9 +3,9 @@ package com.example.mainservice.controller;
 import com.example.mainservice.dto.ChatMessageDTO;
 import com.example.mainservice.dto.ConversationDTO;
 import com.example.mainservice.dto.DoctorSearchDTO;
-import com.example.mainservice.entity.ChatMessage;
-import com.example.mainservice.entity.Conversation;
-import com.example.mainservice.entity.User;
+import com.example.mainservice.entity.*;
+import com.example.mainservice.repository.DoctorRepo;
+import com.example.mainservice.repository.PatientRepo;
 import com.example.mainservice.repository.UserRepository;
 import com.example.mainservice.service.ChatService;
 import lombok.RequiredArgsConstructor;
@@ -26,7 +26,9 @@ import java.util.stream.Collectors;
 public class ChatRestController {
 
     private final ChatService chatService;
-    private final UserRepository userRepository;
+    private final PatientRepo patientRepo;
+    private final DoctorRepo doctorRepo;
+
 
     // ========== EXISTING ENDPOINTS ==========
 
@@ -198,12 +200,19 @@ public class ChatRestController {
     // ========== HELPER METHODS ==========
 
     private Long getCurrentUserId(Authentication authentication) {
-        if (authentication != null && authentication.getName() != null) {
-            // IMPORTANT: authentication.getName() must be the numeric userId string
-            return Long.parseLong(authentication.getName());
+        if (authentication == null || authentication.getPrincipal() == null) {
+            throw new RuntimeException("User not authenticated");
         }
+
+        Object principal = authentication.getPrincipal();
+
+        if (principal instanceof com.example.mainservice.security.CustomUserDetails cud) {
+            return cud.getId();
+        }
+
         throw new RuntimeException("User not authenticated");
     }
+
 
     private ConversationDTO mapToConversationDTO(Conversation conv, Long currentUserId) {
         ConversationDTO dto = new ConversationDTO();
@@ -211,16 +220,16 @@ public class ChatRestController {
         dto.setLastMessage(conv.getLastMessage());
         dto.setTimestamp(conv.getTimestamp());
 
-        User patient = userRepository.findById(conv.getPatientId()).orElse(null);
-        User doctor = userRepository.findById(conv.getDoctorId()).orElse(null);
+        Patient patient = patientRepo.findById(conv.getPatientId()).orElse(null);
+        Doctor doctor = doctorRepo.findById(conv.getDoctorId()).orElse(null);
 
         if (patient != null) {
             dto.setPatient(new ConversationDTO.UserInfo(
                     patient.getId(),
                     patient.getName(),
-                    patient.getProfilePicture(),
+                    null, // must match your field
                     false,
-                    "Patient"
+                    "PATIENT"
             ));
         }
 
@@ -228,18 +237,20 @@ public class ChatRestController {
             dto.setDoctor(new ConversationDTO.UserInfo(
                     doctor.getId(),
                     doctor.getName(),
-                    doctor.getProfilePicture(),
+                    null,
                     false,
-                    doctor.getRole() != null ? doctor.getRole().toString() : "Doctor"
+                    "DOCTOR" // OR doctor.getPosition()
             ));
         }
 
-        Integer unreadCount = chatService.getUnreadCount(conv.getId(), currentUserId);
-        dto.setUnreadCount(unreadCount);
+        dto.setUnreadCount(chatService.getUnreadCount(conv.getId(), currentUserId));
         dto.setOnline(false);
 
         return dto;
     }
+
+
+
 
     private ChatMessageDTO mapToChatMessageDTO(ChatMessage msg) {
         return ChatMessageDTO.builder()
