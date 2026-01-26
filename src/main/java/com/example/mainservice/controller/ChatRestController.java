@@ -1,5 +1,6 @@
 package com.example.mainservice.controller;
 
+import com.example.mainservice.dto.ChatAttachmentDTO;
 import com.example.mainservice.dto.ChatMessageDTO;
 import com.example.mainservice.dto.ConversationDTO;
 import com.example.mainservice.dto.DoctorSearchDTO;
@@ -13,10 +14,18 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 @RestController
@@ -131,6 +140,30 @@ public class ChatRestController {
 
         return ResponseEntity.ok(doctors);
     }
+
+    @PostMapping("/attachments/upload")
+    public ResponseEntity<List<ChatAttachmentDTO>> upload(@RequestParam("files") List<MultipartFile> files) throws IOException {
+        List<ChatAttachmentDTO> result = new ArrayList<>();
+
+        for (MultipartFile f : files) {
+            String savedName = UUID.randomUUID() + "_" + f.getOriginalFilename();
+            Path target = Paths.get("uploads").resolve(savedName);
+            Files.createDirectories(target.getParent());
+            Files.copy(f.getInputStream(), target, StandardCopyOption.REPLACE_EXISTING);
+
+            String url = "http://localhost:8080/uploads/" + savedName;
+
+            result.add(ChatAttachmentDTO.builder()
+                    .fileName(f.getOriginalFilename())
+                    .url(url)
+                    .contentType(f.getContentType())
+                    .size(f.getSize())
+                    .build());
+        }
+
+        return ResponseEntity.ok(result);
+    }
+
 
     /**
      * Start a conversation - works for both PATIENT→DOCTOR and DOCTOR→PATIENT
@@ -253,6 +286,16 @@ public class ChatRestController {
 
 
     private ChatMessageDTO mapToChatMessageDTO(ChatMessage msg) {
+        var attachments = (msg.getAttachments() == null) ? List.<com.example.mainservice.dto.ChatAttachmentDTO>of()
+                : msg.getAttachments().stream().map(a ->
+                com.example.mainservice.dto.ChatAttachmentDTO.builder()
+                        .fileName(a.getFileName())
+                        .url(a.getUrl())
+                        .contentType(a.getContentType())
+                        .size(a.getSize() != null ? a.getSize() : 0L)
+                        .build()
+        ).toList();
+
         return ChatMessageDTO.builder()
                 .id(msg.getId())
                 .conversationId(msg.getConversation().getId())
@@ -262,6 +305,7 @@ public class ChatRestController {
                 .type(msg.getType())
                 .timestamp(msg.getTimestamp())
                 .read(msg.getRead())
+                .attachments(attachments)
                 .build();
     }
 }
