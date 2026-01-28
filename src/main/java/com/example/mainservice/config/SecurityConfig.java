@@ -1,6 +1,7 @@
 package com.example.mainservice.config;
 
 import com.example.mainservice.security.JwtAuthenticationFilter;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Lazy;
@@ -19,10 +20,10 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
-import org.springframework.beans.factory.annotation.Value;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Configuration
 @EnableWebSecurity
@@ -32,10 +33,15 @@ public class SecurityConfig {
     private final UserDetailsService userDetailsService;
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
 
+    // Comma-separated origins (can be overridden in application.properties or env)
+    // Example: cors.allowed.origins=http://localhost:5173,http://localhost:3000
     @Value("${cors.allowed.origins:http://localhost:5173,http://localhost:3000}")
     private String allowedOrigins;
 
-    public SecurityConfig(@Lazy UserDetailsService userDetailsService, @Lazy JwtAuthenticationFilter jwtAuthenticationFilter) {
+    public SecurityConfig(
+            @Lazy UserDetailsService userDetailsService,
+            @Lazy JwtAuthenticationFilter jwtAuthenticationFilter
+    ) {
         this.userDetailsService = userDetailsService;
         this.jwtAuthenticationFilter = jwtAuthenticationFilter;
     }
@@ -50,16 +56,25 @@ public class SecurityConfig {
         return config.getAuthenticationManager();
     }
 
+    /**
+     * CORS for REST endpoints (handled by Spring Security)
+     */
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        // Split allowed origins from environment variable or use defaults
-        List<String> origins = Arrays.asList(allowedOrigins.split(","));
+
+        // Trim spaces and ignore empty values
+        List<String> origins = Arrays.stream(allowedOrigins.split(","))
+                .map(String::trim)
+                .filter(s -> !s.isBlank())
+                .collect(Collectors.toList());
+
         configuration.setAllowedOrigins(origins);
-        configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
-        configuration.setAllowedHeaders(Arrays.asList("*"));
+        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+        configuration.setAllowedHeaders(List.of("*"));
+        configuration.setExposedHeaders(List.of("Authorization"));
         configuration.setAllowCredentials(true);
-        configuration.setExposedHeaders(Arrays.asList("Authorization"));
+        configuration.setMaxAge(3600L);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
@@ -71,15 +86,28 @@ public class SecurityConfig {
         http
                 .csrf(AbstractHttpConfigurer::disable)
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+
                 .authorizeHttpRequests(auth -> auth
+                        // Public authentication endpoints
                         .requestMatchers("/api/auth/**").permitAll()
-                        .requestMatchers("/api/**").permitAll()
+
+                        // WebSocket handshake endpoints (SockJS hits these)
+                        .requestMatchers("/ws/**", "/ws").permitAll()
+
+                        // Allow error route
                         .requestMatchers("/error").permitAll()
+
+                        // Preflight requests (important for CORS)
+                        .requestMatchers(org.springframework.http.HttpMethod.OPTIONS, "/**").permitAll()
+
+                        .requestMatchers("/api/chat/**").authenticated()
+
+                        // Everything else MUST be authenticated
                         .anyRequest().authenticated()
                 )
-                .sessionManagement(session -> session
-                        .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
-                )
+
+                // JWT filter before Spring's default auth filter
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
