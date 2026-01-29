@@ -19,8 +19,22 @@ public class AppointmentTypeController {
     // GET all appointment types
     @GetMapping
     public List<AppointmentType> getAllTypes() {
-        return typeRepository.findAll();
+        List<AppointmentType> types = typeRepository.findAll();
+
+        if (types.isEmpty()) {
+            AppointmentType p = new AppointmentType();
+            p.setTypeName("Physical");
+
+            AppointmentType o = new AppointmentType();
+            o.setTypeName("Online");
+
+            typeRepository.saveAll(List.of(p, o));
+            types = typeRepository.findAll();
+        }
+
+        return types;
     }
+
 
     @PostMapping
     public AppointmentType addType(@RequestBody AppointmentType type) {

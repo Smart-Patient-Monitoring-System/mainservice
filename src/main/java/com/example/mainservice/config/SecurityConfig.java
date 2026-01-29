@@ -5,6 +5,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Lazy;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
@@ -35,7 +36,8 @@ public class SecurityConfig {
 
     // Comma-separated origins (can be overridden in application.properties or env)
     // Example: cors.allowed.origins=http://localhost:5173,http://localhost:3000
-    @Value("${cors.allowed.origins:http://localhost:5173,http://localhost:3000}")
+    @Value("${spring.web.cors.allowed-origins:http://localhost:5173,http://localhost:3000}")
+
     private String allowedOrigins;
 
     public SecurityConfig(
@@ -89,19 +91,33 @@ public class SecurityConfig {
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 
                 .authorizeHttpRequests(auth -> auth
-                        // Public authentication endpoints
+                        // -------- PUBLIC --------
                         .requestMatchers("/api/auth/**").permitAll()
-
-                        // WebSocket handshake endpoints (SockJS hits these)
+                        .requestMatchers(HttpMethod.GET, "/api/payments/pay/**").permitAll()
+                        .requestMatchers("/api/payments/notify").permitAll()
                         .requestMatchers("/ws/**", "/ws").permitAll()
-
-                        // Allow error route
                         .requestMatchers("/error").permitAll()
-
-                        // Preflight requests (important for CORS)
                         .requestMatchers(org.springframework.http.HttpMethod.OPTIONS, "/**").permitAll()
 
+                        // Booking UI needs these even before login (or at least for PATIENT)
+                        .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/doctors/**").permitAll()
+                        .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/appointment-types/**").permitAll()
+                        .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/availability/doctor/**").permitAll()
+
+                        // -------- PATIENT (logged in) --------
+                        .requestMatchers(org.springframework.http.HttpMethod.POST, "/api/appointments/book").hasAnyRole("PATIENT","ADMIN")
+                        .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/appointments/user/**").hasAnyRole("PATIENT","ADMIN")
+
+                        // -------- ADMIN ONLY --------
+                        .requestMatchers("/api/admin/**").hasRole("ADMIN")
+                        .requestMatchers(org.springframework.http.HttpMethod.POST, "/api/doctors/**").hasRole("ADMIN")
+                        .requestMatchers(org.springframework.http.HttpMethod.PUT, "/api/doctors/**").hasRole("ADMIN")
+                        .requestMatchers(org.springframework.http.HttpMethod.DELETE, "/api/doctors/**").hasRole("ADMIN")
+                        .requestMatchers(org.springframework.http.HttpMethod.POST, "/api/appointment-types/**").hasRole("ADMIN")
+
+                        // Chat
                         .requestMatchers("/api/chat/**").authenticated()
+
 
                         // Everything else MUST be authenticated
                         .anyRequest().authenticated()
