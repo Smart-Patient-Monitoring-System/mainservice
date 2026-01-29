@@ -23,7 +23,7 @@ public class AdminAppointmentController {
     @GetMapping
     public List<AppointmentDTO> getAllAppointments() {
 
-        // ✅ ONLY SUCCESS PAYMENTS
+        //  ONLY SUCCESS PAYMENTS
         List<Appointment> list =
                 appointmentRepository.findByPaymentStatus(PaymentStatus.SUCCESS);
 
