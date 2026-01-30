@@ -4,6 +4,8 @@ import com.example.mainservice.dto.AdminDTO;
 import com.example.mainservice.dto.DoctorDTO;
 import com.example.mainservice.entity.Admin;
 import com.example.mainservice.entity.Doctor;
+import com.example.mainservice.entity.Patient;
+import com.example.mainservice.repository.PatientRepo;
 import com.example.mainservice.repository.AdminRepo;
 import com.example.mainservice.service.DoctorService;
 import com.example.mainservice.service.EmailService;
@@ -36,6 +38,10 @@ public class AdminController {
 
     @Autowired
     private PasswordEncoder passwordEncoder;
+
+    @Autowired
+    private PatientRepo patientRepo;
+
 
     @PostMapping("/doctor/create")
     public ResponseEntity<?> createDoctorByAdmin(@Valid @RequestBody DoctorDTO doctorDto) {
@@ -180,6 +186,12 @@ public class AdminController {
                     .body(new ErrorResponse("An error occurred: " + e.getMessage()));
         }
     }
+
+    @GetMapping("/unassigned")
+    public List<Patient> getUnassigned(@RequestParam String hospital) {
+        return patientRepo.findByHospitalAndDoctorIsNull(hospital);
+    }
+
 
     @DeleteMapping("/{id}")
     public ResponseEntity<?> deleteAdmin(@PathVariable Long id) {

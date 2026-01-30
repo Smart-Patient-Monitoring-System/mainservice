@@ -40,4 +40,6 @@ public interface DoctorRepo extends JpaRepository<Doctor, Long> {
      * Search by hospital (useful for filtering)
      */
     List<Doctor> findByHospitalContainingIgnoreCase(String hospital);
+
+    List<Doctor> findByHospitalOrderByIdAsc(String hospital);
 }

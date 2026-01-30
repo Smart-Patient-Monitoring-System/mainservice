@@ -5,7 +5,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.Setter;
-
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
@@ -95,6 +95,16 @@ public class Patient {
 
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
+
+    // Patient.java
+    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "doctor_id")
+    private Doctor doctor;
+
+    @Column(nullable = false)
+    private String hospital; // must match doctor's hospital
+
 
     public Patient() {
     }

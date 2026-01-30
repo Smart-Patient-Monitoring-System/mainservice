@@ -50,7 +50,7 @@ public class PatientService {
                 .username(patient.getUsername())
                 .password(passwordEncoder.encode(patient.getPassword()))
                 .bloodType(patient.getBloodType())
-
+                .hospital(patient.getHospital())
                 // NEW: Emergency fields
                 .city(patient.getCity())
                 .district(patient.getDistrict())
@@ -89,6 +89,8 @@ public class PatientService {
                 .bloodType(p.getBloodType())
                 .password(p.getPassword())
                 .username(p.getUsername())
+                .hospital(p.getHospital())
+
                 // NEW: Emergency fields
                 .city(p.getCity())
                 .district(p.getDistrict())
@@ -133,6 +135,7 @@ public class PatientService {
         if(dto.getBloodType()!=null) p.setBloodType(dto.getBloodType());
         if(dto.getPassword()!=null) p.setPassword(dto.getPassword());
         if(dto.getUsername()!=null) p.setUsername(dto.getUsername());
+        if (dto.getHospital() != null) p.setHospital(dto.getHospital());
 
         // NEW: Update emergency fields
         if (dto.getCity() != null) p.setCity(dto.getCity());
@@ -169,6 +172,7 @@ public class PatientService {
         dto.setBloodType(patient.getBloodType());
         dto.setPassword(patient.getPassword());
         dto.setUsername(patient.getUsername());
+        dto.setHospital(patient.getHospital());
 
         // NEW: Emergency fields
         dto.setCity(patient.getCity());

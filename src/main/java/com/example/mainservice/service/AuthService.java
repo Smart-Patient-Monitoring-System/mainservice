@@ -356,6 +356,7 @@ public class AuthService {
                 .nicNo(signupRequest.getNicNo())
                 .gender(signupRequest.getGender())
                 .contactNo(signupRequest.getContactNo())
+                .hospital(signupRequest.getHospital())
                 .guardiansName(signupRequest.getGuardianName())
                 .guardiansContactNo(signupRequest.getGuardianContactNo())
                 .username(signupRequest.getUsername())

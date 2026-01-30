@@ -36,6 +36,8 @@ public class PatientDTO {
 
     private String bloodType;
 
+    private String hospital;
+
     //Emergency panel fields
     private String city;
     private String district;

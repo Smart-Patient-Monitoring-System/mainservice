@@ -40,7 +40,10 @@ public class SignupRequest {
     
     @NotBlank(message = "Contact No is required")
     private String contactNo;
-    
+
+    @NotBlank(message = "Hospital is required")
+    private String hospital;
+
     @NotBlank(message = "Guardian Name is required")
     private String guardianName;
 
