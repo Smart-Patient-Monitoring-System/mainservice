@@ -4,6 +4,7 @@ import com.example.mainservice.dto.PatientDTO;
 import com.example.mainservice.entity.Patient;
 import com.example.mainservice.entity.EmergencyContact;
 import com.example.mainservice.entity.Hospital;
+import com.example.mainservice.service.PatientAssignmentService;
 import com.example.mainservice.service.PatientService;
 import com.example.mainservice.service.EmergencyService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -20,21 +21,31 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/patient")
 public class PatientController {
+
     @Autowired
     private PatientService patientservice;
 
     @Autowired
     private EmergencyService emergencyService;
 
+    @Autowired
+    private PatientAssignmentService assignService;
+
     @PostMapping("/create")
     public ResponseEntity<Map<String, Object>> createPatient(@RequestBody PatientDTO patientDto) {
-        Patient patient = patientservice.create(patientDto);
+
+        // 1) Save patient first (doctor_id is NULL initially)
+        Patient savedPatient = patientservice.create(patientDto);
+
+        // MUST pass hospital correctly
+        assignService.assignPatientRoundRobin(savedPatient.getId(), savedPatient.getHospital());
+
 
         Map<String, Object> response = new HashMap<>();
-        response.put("patient", patient);
-        response.put("message", "Patient registered successfully");
+        response.put("patient", savedPatient);
+        response.put("message", "Patient registered successfully and assigned to a doctor");
         response.put("emergencyContactCreated",
-                patient.getGuardiansName() != null && patient.getGuardiansContactNo() != null);
+                savedPatient.getGuardiansName() != null && savedPatient.getGuardiansContactNo() != null);
 
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
@@ -65,6 +76,7 @@ public class PatientController {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
         }
     }
+
 
     // NEW: Emergency Panel Endpoint
     @GetMapping("/emergency-panel/{patientId}")

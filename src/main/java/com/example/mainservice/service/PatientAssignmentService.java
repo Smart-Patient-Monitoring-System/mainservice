@@ -17,6 +17,7 @@ public class PatientAssignmentService {
     private final PatientRepo patientRepo;
     private final HospitalAssignStateRepo stateRepo;
 
+
     @Transactional
     public Patient assignPatientRoundRobin(Long patientId, String hospital) {
 
@@ -24,19 +25,26 @@ public class PatientAssignmentService {
         Patient patient = patientRepo.findById(patientId)
                 .orElseThrow(() -> new RuntimeException("Patient not found"));
 
+        // already assigned
         if (patient.getDoctor() != null) {
-            return patient; // already assigned
+            return patient;
         }
 
+        //  Prefer patient's stored hospital; fallback to parameter
+        String hosp = (patient.getHospital() != null) ? patient.getHospital() : hospital;
+        if (hosp == null || hosp.isBlank()) throw new RuntimeException("Hospital is required");
+
         // 2) doctors in that hospital
-        List<Doctor> doctors = doctorRepo.findByHospitalOrderByIdAsc(hospital);
-        if (doctors.isEmpty()) throw new RuntimeException("No doctors in this hospital");
+        List<Doctor> doctors = doctorRepo.findByHospitalOrderByIdAsc(hosp);
+        if (doctors.isEmpty()) {
+            throw new RuntimeException("No doctors in this hospital: " + hosp);
+        }
 
         // 3) lock state row for hospital (prevents race condition)
-        HospitalAssignState state = stateRepo.findByHospitalForUpdate(hospital)
+        HospitalAssignState state = stateRepo.findByHospitalForUpdate(hosp)
                 .orElseGet(() -> stateRepo.save(
                         HospitalAssignState.builder()
-                                .hospital(hospital)
+                                .hospital(hosp)
                                 .lastDoctorId(null)
                                 .build()
                 ));
@@ -48,7 +56,7 @@ public class PatientAssignmentService {
 
         // 5) assign and update state
         patient.setDoctor(nextDoctor);
-        patient.setHospital(hospital);
+        patient.setHospital(hosp); //  ensure consistent hospital value
 
         state.setLastDoctorId(nextDoctor.getId());
 
@@ -56,6 +64,7 @@ public class PatientAssignmentService {
         stateRepo.save(state);
         return patientRepo.save(patient);
     }
+
 
     private Doctor pickNext(List<Doctor> doctors, Long lastDoctorId) {
         if (lastDoctorId == null) return doctors.get(0);

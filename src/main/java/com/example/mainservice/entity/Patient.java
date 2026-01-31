@@ -103,7 +103,7 @@ public class Patient {
     private Doctor doctor;
 
     @Column(nullable = false)
-    private String hospital; // must match doctor's hospital
+    private String hospital;
 
 
     public Patient() {

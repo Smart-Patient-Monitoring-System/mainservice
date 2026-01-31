@@ -92,6 +92,8 @@ public class SecurityConfig {
                         // Public authentication endpoints
                         .requestMatchers("/api/auth/**").permitAll()
 
+                        .requestMatchers("/api/public/**").permitAll()
+
                         // WebSocket handshake endpoints (SockJS hits these)
                         .requestMatchers("/ws/**", "/ws").permitAll()
 
@@ -102,6 +104,9 @@ public class SecurityConfig {
                         .requestMatchers(org.springframework.http.HttpMethod.OPTIONS, "/**").permitAll()
 
                         .requestMatchers("/api/chat/**").authenticated()
+
+                        .requestMatchers("/api/admin/**").hasRole("ADMIN")
+
 
                         // Everything else MUST be authenticated
                         .anyRequest().authenticated()
