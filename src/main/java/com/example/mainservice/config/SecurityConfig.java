@@ -108,6 +108,8 @@ public class SecurityConfig {
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
 
 
+
+
                         // Everything else MUST be authenticated
                         .anyRequest().authenticated()
                 )
