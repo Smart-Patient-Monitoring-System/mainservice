@@ -12,6 +12,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.util.Base64;
 
 import java.io.IOException;
 import java.time.LocalDate;
@@ -46,6 +49,14 @@ public class HealthDataService {
             Map<String, Object> jsonData = OBJECT_MAPPER.readValue(jsonContent, Map.class);
             String source = determineSource(jsonData);
 
+            // Calculate content hash
+            String contentHash = calculateContentHash(jsonContent);
+
+            // Check for duplicate
+            if (workoutSessionRepository.existsByPatientIdAndContentHash(patientId, contentHash)) {
+                throw new RuntimeException("Duplicate upload: This file has already been uploaded.");
+            }
+
             // Create workout session
             WorkoutSession session = WorkoutSession.builder()
                     .patient(patient)
@@ -54,7 +65,9 @@ public class HealthDataService {
                     .uploadDate(LocalDate.now())
                     .source(source)
                     .healthData(jsonContent)
+                    .healthData(jsonContent)
                     .fileName(file.getOriginalFilename())
+                    .contentHash(contentHash)
                     .build();
 
             WorkoutSession savedSession = workoutSessionRepository.save(session);
@@ -133,6 +146,16 @@ public class HealthDataService {
             return "Google Fit";
         }
         return "Custom Health Data";
+    }
+
+    private String calculateContentHash(String content) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] hash = digest.digest(content.getBytes());
+            return Base64.getEncoder().encodeToString(hash);
+        } catch (NoSuchAlgorithmException e) {
+            throw new RuntimeException("Error calculating content hash", e);
+        }
     }
 
     /**

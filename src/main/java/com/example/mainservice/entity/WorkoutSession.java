@@ -45,6 +45,9 @@ public class WorkoutSession {
     @Column(name = "file_name")
     private String fileName;
 
+    @Column(name = "content_hash")
+    private String contentHash;
+
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
 
