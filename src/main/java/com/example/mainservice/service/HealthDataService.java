@@ -24,9 +24,10 @@ import java.util.stream.Collectors;
 @Slf4j
 public class HealthDataService {
 
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+
     private final WorkoutSessionRepository workoutSessionRepository;
     private final PatientRepo patientRepo;
-    private final ObjectMapper objectMapper;
 
     /**
      * Upload a new workout session for a patient
@@ -42,7 +43,7 @@ public class HealthDataService {
             String jsonContent = new String(file.getBytes());
             
             // Parse JSON to determine source
-            Map<String, Object> jsonData = objectMapper.readValue(jsonContent, Map.class);
+            Map<String, Object> jsonData = OBJECT_MAPPER.readValue(jsonContent, Map.class);
             String source = determineSource(jsonData);
 
             // Create workout session
@@ -139,7 +140,7 @@ public class HealthDataService {
     private WorkoutSessionDTO convertToDTO(WorkoutSession session) {
         Object healthDataObj = null;
         try {
-            healthDataObj = objectMapper.readValue(session.getHealthData(), Map.class);
+            healthDataObj = OBJECT_MAPPER.readValue(session.getHealthData(), Map.class);
         } catch (JsonProcessingException e) {
             log.warn("Error parsing health data JSON for session {}: {}", session.getId(), e.getMessage());
             // Return raw string if parsing fails
