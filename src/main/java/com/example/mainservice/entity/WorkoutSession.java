@@ -26,6 +26,12 @@ public class WorkoutSession {
     @Column(nullable = false)
     private String name;
 
+    @Column(name = "session_name", nullable = false)
+    private String sessionName;
+
+    @Column(name = "workout_date", nullable = false)
+    private LocalDate workoutDate;
+
     @Column(name = "upload_date", nullable = false)
     private LocalDate uploadDate;
 
@@ -33,7 +39,7 @@ public class WorkoutSession {
     private String source; // Apple Health, Google Fit, Custom Health Data
 
     @Lob
-    @Column(name = "health_data", columnDefinition = "LONGTEXT")
+    @Column(name = "health_data_json", columnDefinition = "LONGTEXT")
     private String healthData; // JSON string of health data
 
     @Column(name = "file_name")
@@ -52,10 +58,25 @@ public class WorkoutSession {
         if (uploadDate == null) {
             uploadDate = LocalDate.now();
         }
+        if (workoutDate == null) {
+            workoutDate = uploadDate;
+        }
+        if (sessionName == null && name != null) {
+            sessionName = name;
+        }
+        if (name == null && sessionName != null) {
+            name = sessionName;
+        }
     }
 
     @PreUpdate
     protected void onUpdate() {
         updatedAt = LocalDateTime.now();
+        if (sessionName == null && name != null) {
+            sessionName = name;
+        }
+        if (workoutDate == null && uploadDate != null) {
+            workoutDate = uploadDate;
+        }
     }
 }

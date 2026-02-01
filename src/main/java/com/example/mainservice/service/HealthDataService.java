@@ -41,7 +41,7 @@ public class HealthDataService {
         try {
             // Read file content
             String jsonContent = new String(file.getBytes());
-            
+
             // Parse JSON to determine source
             Map<String, Object> jsonData = OBJECT_MAPPER.readValue(jsonContent, Map.class);
             String source = determineSource(jsonData);
@@ -50,6 +50,7 @@ public class HealthDataService {
             WorkoutSession session = WorkoutSession.builder()
                     .patient(patient)
                     .name(name)
+                    .sessionName(name)
                     .uploadDate(LocalDate.now())
                     .source(source)
                     .healthData(jsonContent)
@@ -57,9 +58,9 @@ public class HealthDataService {
                     .build();
 
             WorkoutSession savedSession = workoutSessionRepository.save(session);
-            
+
             log.info("Uploaded workout session '{}' for patient ID: {}", name, patientId);
-            
+
             return convertToDTO(savedSession);
         } catch (IOException e) {
             log.error("Error processing health data file: {}", e.getMessage());
@@ -77,7 +78,7 @@ public class HealthDataService {
         }
 
         List<WorkoutSession> sessions = workoutSessionRepository.findByPatientIdOrderByCreatedAtDesc(patientId);
-        
+
         return sessions.stream()
                 .map(this::convertToDTO)
                 .collect(Collectors.toList());
@@ -93,9 +94,9 @@ public class HealthDataService {
 
         session.setName(name);
         WorkoutSession updatedSession = workoutSessionRepository.save(session);
-        
+
         log.info("Updated workout session ID: {} with new name: {}", sessionId, name);
-        
+
         return convertToDTO(updatedSession);
     }
 
@@ -151,7 +152,7 @@ public class HealthDataService {
                 .id(session.getId())
                 .patientId(session.getPatient().getId())
                 .name(session.getName())
-                .uploadDate(session.getUploadDate())
+                .uploadDate(session.getWorkoutDate())
                 .source(session.getSource())
                 .healthData(healthDataObj)
                 .fileName(session.getFileName())
