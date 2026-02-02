@@ -46,12 +46,6 @@ public class DoctorController {
         return  doctorservice.getDetails();
     }
 
-    @GetMapping("/get/{Id}")
-    public List<DoctorDTO> getDoctor(){
-
-        return  doctorservice.getDetails();
-    }
-
 
     @DeleteMapping("/delete/{Id}")
     public String deleteDoctorByID(@PathVariable Long Id) {

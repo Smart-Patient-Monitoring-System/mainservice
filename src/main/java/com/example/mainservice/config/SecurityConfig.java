@@ -95,13 +95,17 @@ public class SecurityConfig {
                         // WebSocket handshake endpoints (SockJS hits these)
                         .requestMatchers("/ws/**", "/ws").permitAll()
 
+                        .requestMatchers("/api/doctor/**").permitAll()
+                        .requestMatchers("/api/patient/**").permitAll()
+                        .requestMatchers("/api/pendingdoctor/**").permitAll()
+
                         // Allow error route
                         .requestMatchers("/error").permitAll()
 
                         // Preflight requests (important for CORS)
                         .requestMatchers(org.springframework.http.HttpMethod.OPTIONS, "/**").permitAll()
 
-                        .requestMatchers("/api/chat/**").authenticated()
+                        .requestMatchers("/api/**").authenticated()
 
                         // Everything else MUST be authenticated
                         .anyRequest().authenticated()
