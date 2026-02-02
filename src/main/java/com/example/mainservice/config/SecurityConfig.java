@@ -93,6 +93,8 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         // -------- PUBLIC --------
                         .requestMatchers("/api/auth/**").permitAll()
+                        .requestMatchers("/api/admin/**").permitAll()
+                        .requestMatchers("/api/doctor/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/payments/pay/**").permitAll()
                         .requestMatchers("/api/payments/notify").permitAll()
                         .requestMatchers("/ws/**", "/ws").permitAll()
