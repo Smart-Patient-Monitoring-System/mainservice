@@ -104,6 +104,10 @@ public class SecurityConfig {
                         .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/appointment-types/**").permitAll()
                         .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/availability/doctor/**").permitAll()
 
+                        // -------- DOCTOR (logged in) --------
+                        .requestMatchers("/api/doctor/**").hasRole("DOCTOR")
+
+
                         // -------- PATIENT (logged in) --------
                         .requestMatchers(org.springframework.http.HttpMethod.POST, "/api/appointments/book").hasAnyRole("PATIENT","ADMIN")
                         .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/appointments/user/**").hasAnyRole("PATIENT","ADMIN")
