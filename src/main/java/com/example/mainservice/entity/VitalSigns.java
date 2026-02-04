@@ -40,6 +40,9 @@ public class VitalSigns {
     // Weight
     private Double weight;
 
+    // Room number/location
+    private String room;
+
     // Date and Time
     private LocalDateTime measurementDateTime;
 
