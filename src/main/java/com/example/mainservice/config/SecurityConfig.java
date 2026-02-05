@@ -93,8 +93,8 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         // -------- PUBLIC --------
                         .requestMatchers("/api/auth/**").permitAll()
-                        .requestMatchers("/api/admin/**").permitAll()
-                        .requestMatchers("/api/doctor/**").permitAll()
+//                        .requestMatchers("/api/admin/**").permitAll()
+//                        .requestMatchers("/api/doctor/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/payments/pay/**").permitAll()
                         .requestMatchers("/api/payments/notify").permitAll()
                         .requestMatchers("/ws/**", "/ws").permitAll()
@@ -119,6 +119,8 @@ public class SecurityConfig {
 
                         // Chat
                         .requestMatchers("/api/chat/**").authenticated()
+
+                        .requestMatchers("/api/emergency/**").hasAnyRole("PATIENT","ADMIN","DOCTOR")
 
 
                         // Everything else MUST be authenticated
