@@ -18,9 +18,9 @@ import java.time.LocalDateTime;
 import java.util.Random;
 
 /**
- * Test data loader for creating dummy patients and vital signs.
- * Only runs in 'dev' profile. Add spring.profiles.active=dev to
- * application.properties
+ * Data loader for:
+ * 1. Assigning doctors to existing patients (runs in ALL profiles)
+ * 2. Loading test patients and vital signs (runs only in 'dev' profile)
  */
 @Configuration
 @RequiredArgsConstructor
@@ -34,14 +34,25 @@ public class TestDataLoader {
 
     private final Random random = new Random();
 
+    /**
+     * RUNS IN ALL MODES - Assigns doctors to any existing patients without one.
+     * This ensures round-robin works even for existing database records.
+     */
+    
     @Bean
-    @Profile("dev") // Only load test data in dev profile
+    public CommandLineRunner assignDoctorsToPatients() {
+        return args -> {
+            assignExistingPatientsWithoutDoctor();
+        };
+    }
+
+    /**
+     * RUNS ONLY IN DEV MODE - Loads test patients for development/testing.
+     */
+    @Bean
+    @Profile("dev")
     public CommandLineRunner loadTestData() {
         return args -> {
-            // Always assign existing patients without doctors (even if test data already
-            // loaded)
-            assignExistingPatientsWithoutDoctor();
-
             // Check if test patients already exist
             if (patientRepo.count() >= 10) {
                 log.info("Test data already loaded. Skipping new test patients...");

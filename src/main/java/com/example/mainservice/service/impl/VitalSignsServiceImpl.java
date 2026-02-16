@@ -38,7 +38,8 @@ public class VitalSignsServiceImpl implements VitalSignsService {
             // Validate blood pressure pairs
             if ((dto.getBloodPressureSystolic() != null && dto.getBloodPressureDiastolic() == null) ||
                     (dto.getBloodPressureSystolic() == null && dto.getBloodPressureDiastolic() != null)) {
-                throw new IllegalArgumentException("Both systolic and diastolic blood pressure values must be provided together");
+                throw new IllegalArgumentException(
+                        "Both systolic and diastolic blood pressure values must be provided together");
             }
 
             // Parse date and time
@@ -61,6 +62,7 @@ public class VitalSignsServiceImpl implements VitalSignsService {
 
             VitalSigns saved = repository.save(vitalSigns);
             logger.info("Vital signs saved successfully with ID: {}", saved.getId());
+
             return saved;
 
         } catch (Exception e) {
