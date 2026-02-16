@@ -42,6 +42,21 @@ public class ChatService {
                 .read(false)
                 .build();
 
+        // map attachments if provided
+        if (messageDTO.getAttachments() != null && !messageDTO.getAttachments().isEmpty()) {
+            var attList = messageDTO.getAttachments().stream().map(a ->
+                    com.example.mainservice.entity.ChatAttachment.builder()
+                            .fileName(a.getFileName())
+                            .url(a.getUrl())
+                            .contentType(a.getContentType())
+                            .size(a.getSize())
+                            .message(chatMessage)
+                            .build()
+            ).toList();
+
+            chatMessage.setAttachments(attList);
+        }
+
         ChatMessage savedMessage = chatMessageRepository.save(chatMessage);
 
         conversation.setLastMessage(messageDTO.getContent());

@@ -4,6 +4,8 @@ import jakarta.persistence.*;
 import lombok.*;
 
 import java.time.LocalDateTime;
+import java.util.List;
+
 
 @Entity
 @Table(name = "chat_messages")
@@ -39,6 +41,10 @@ public class ChatMessage {
 
     @Column(name = "is_read")
     private Boolean read = false;
+
+    @OneToMany(mappedBy = "message", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<ChatAttachment> attachments;
+
 
     @PrePersist
     protected void onCreate() {
