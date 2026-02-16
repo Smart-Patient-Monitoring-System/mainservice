@@ -38,6 +38,7 @@ public class TestDataLoader {
      * RUNS IN ALL MODES - Assigns doctors to any existing patients without one.
      * This ensures round-robin works even for existing database records.
      */
+    
     @Bean
     public CommandLineRunner assignDoctorsToPatients() {
         return args -> {
