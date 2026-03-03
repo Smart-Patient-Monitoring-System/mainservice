@@ -8,6 +8,9 @@ import java.util.List;
 
 public interface AppointmentRepository extends JpaRepository<Appointment, Long> {
 
-    // Fetch only successful payments
+    // Existing admin method
     List<Appointment> findByPaymentStatus(PaymentStatus paymentStatus);
+
+    // Fetch only successful appointments of a specific patient
+    List<Appointment> findByPatientIdAndPaymentStatus(Long patientId, PaymentStatus paymentStatus);
 }

@@ -1,4 +1,3 @@
-
 package com.example.mainservice.dto;
 
 import lombok.*;
@@ -12,4 +11,5 @@ public class DoctorAvailabilityDTO {
     private Long id;               // Slot ID
     private LocalDate availableDate;
     private LocalTime availableTime;
+    private Boolean isBooked;      // ✅ NEW FIELD to indicate if the slot is booked
 }

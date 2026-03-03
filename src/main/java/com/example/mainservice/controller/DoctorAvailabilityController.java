@@ -19,21 +19,38 @@ public class DoctorAvailabilityController {
 
     private final DoctorAvailabilityService service;
 
-    // ✅ Get available slots for a doctor on a specific date
+    // ✅ Get available slots (unbooked only) - existing endpoint
     @GetMapping("/doctor/{doctorId}")
     public List<DoctorAvailabilityDTO> getAvailableSlots(
             @PathVariable Long doctorId,
             @RequestParam("date") String dateStr
     ) {
         LocalDate date = LocalDate.parse(dateStr);
-
-        // Convert entities to DTOs for API response
         List<DoctorAvailability> slots = service.getAvailableSlots(doctorId, date);
         return slots.stream()
                 .map(slot -> new DoctorAvailabilityDTO(
                         slot.getId(),
                         slot.getAvailableDate(),
-                        slot.getAvailableTime()
+                        slot.getAvailableTime(),
+                        slot.getIsBooked()  // include booked status in DTO
+                ))
+                .collect(Collectors.toList());
+    }
+
+    // ✅ Get all slots (booked + available) - NEW endpoint
+    @GetMapping("/doctor/{doctorId}/all")
+    public List<DoctorAvailabilityDTO> getAllSlots(
+            @PathVariable Long doctorId,
+            @RequestParam("date") String dateStr
+    ) {
+        LocalDate date = LocalDate.parse(dateStr);
+        List<DoctorAvailability> slots = service.getAllSlots(doctorId, date);
+        return slots.stream()
+                .map(slot -> new DoctorAvailabilityDTO(
+                        slot.getId(),
+                        slot.getAvailableDate(),
+                        slot.getAvailableTime(),
+                        slot.getIsBooked()
                 ))
                 .collect(Collectors.toList());
     }

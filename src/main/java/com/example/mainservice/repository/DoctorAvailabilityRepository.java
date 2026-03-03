@@ -15,4 +15,5 @@ public interface DoctorAvailabilityRepository extends JpaRepository<DoctorAvaila
     );
 
     List<DoctorAvailability> findByDoctorId(Long doctorId);
+    List<DoctorAvailability> findByDoctorIdAndAvailableDate(Long doctorId, LocalDate date);
 }

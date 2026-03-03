@@ -26,6 +26,11 @@ public class DoctorAvailabilityService {
         return repository.findByDoctorIdAndAvailableDateAndIsBookedFalse(doctorId, date);
     }
 
+    // ✅ GET all slots (booked + available) – NEW METHOD
+    public List<DoctorAvailability> getAllSlots(Long doctorId, LocalDate date) {
+        return repository.findByDoctorIdAndAvailableDate(doctorId, date);
+    }
+
     // ADD multiple slots
     public void addAvailability(SaveAvailabilityRequest request) {
         SpecialDoctor doctor = doctorRepository.findById(request.getDoctorId())

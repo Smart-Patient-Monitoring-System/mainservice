@@ -120,9 +120,15 @@ public class SecurityConfig {
                         // Chat
                         .requestMatchers("/api/chat/**").authenticated()
 
+                        // In SecurityConfig.java → securityFilterChain
+                        .requestMatchers(HttpMethod.GET, "/api/appointments/user/**")
+                        .hasAnyAuthority("ROLE_PATIENT", "ROLE_ADMIN")
+
+
 
                         // Everything else MUST be authenticated
                         .anyRequest().authenticated()
+
                 )
 
                 // JWT filter before Spring's default auth filter
