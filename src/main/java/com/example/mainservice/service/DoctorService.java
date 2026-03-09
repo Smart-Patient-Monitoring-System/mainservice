@@ -1,5 +1,6 @@
 package com.example.mainservice.service;
 
+import com.example.mainservice.dto.CriticalAlertDTO;
 import com.example.mainservice.dto.DoctorDTO;
 import com.example.mainservice.dto.DoctorPortalPatientDTO;
 import com.example.mainservice.entity.Doctor;
@@ -24,6 +25,7 @@ public class DoctorService {
     private final PasswordEncoder passwordEncoder;
     private final PatientRepo patientRepo;
     private final VitalSignsRepository vitalSignsRepository;
+    private final com.example.mainservice.repository.ECGReadingRepository ecgReadingRepository;
 
     public Doctor create(DoctorDTO doctor) {
 
@@ -148,7 +150,12 @@ public class DoctorService {
                 .patientName(patient.getName())
                 .bloodType(patient.getBloodType())
                 .contactNo(patient.getContactNo())
-                .medicalConditions(patient.getMedicalConditions());
+                .medicalConditions(patient.getMedicalConditions())
+                .city(patient.getCity())
+                .district(patient.getDistrict())
+                .address(patient.getAddress())
+                .gender(patient.getGender())
+                .dateOfBirth(patient.getDateOfBirth());
 
         if (vitals != null) {
             builder.room(vitals.getRoom())
@@ -233,6 +240,138 @@ public class DoctorService {
             default:
                 return "STABLE";
         }
+    }
+
+    /**
+     * Generate critical alerts for a doctor's assigned patients.
+     * Each abnormal vital sign generates a separate alert.
+     */
+    public List<CriticalAlertDTO> getCriticalAlerts(Long doctorId) {
+        List<Patient> patients = patientRepo.findByAssignedDoctorId(doctorId);
+        java.util.ArrayList<CriticalAlertDTO> alerts = new java.util.ArrayList<>();
+
+        for (Patient patient : patients) {
+            // ============================================
+            // 1. Vital Signs Alerts (using VitalReports-AI)
+            // ============================================
+            VitalSigns vitals = vitalSignsRepository
+                    .findFirstByPatientIdOrderByMeasurementDateTimeDesc(patient.getId());
+            String roomVal = "Unknown";
+
+            if (vitals != null) {
+                roomVal = vitals.getRoom();
+                // Use cached triage level if available; else fallback to old calculation
+                String overallRisk = vitals.getTriageLevel() != null ? vitals.getTriageLevel()
+                        : calculateRiskLevel(vitals);
+
+                if ("CRITICAL".equalsIgnoreCase(overallRisk) || "HIGH".equalsIgnoreCase(overallRisk)
+                        || "BAD".equalsIgnoreCase(overallRisk)) {
+
+                    // -- SpO2 --
+                    if ("CRITICAL".equalsIgnoreCase(vitals.getSpo2Status())
+                            || "BAD".equalsIgnoreCase(vitals.getSpo2Status())) {
+                        alerts.add(CriticalAlertDTO.builder()
+                                .patientId(patient.getId()).patientName(patient.getName()).room(roomVal)
+                                .alertTitle("SpO2 Alert: " + vitals.getSpo2Status())
+                                .description("SpO2 level is " + vitals.getSpo2() + "%")
+                                .severity("CRITICAL".equalsIgnoreCase(vitals.getSpo2Status()) ? "CRITICAL" : "HIGH")
+                                .currentValue(vitals.getSpo2() + "%").normalRange("95-100%")
+                                .recordedAt(vitals.getMeasurementDateTime()).build());
+                    }
+
+                    // -- Heart Rate --
+                    if ("CRITICAL".equalsIgnoreCase(vitals.getHeartRateStatus())
+                            || "BAD".equalsIgnoreCase(vitals.getHeartRateStatus())) {
+                        alerts.add(CriticalAlertDTO.builder()
+                                .patientId(patient.getId()).patientName(patient.getName()).room(roomVal)
+                                .alertTitle("Heart Rate Alert: " + vitals.getHeartRateStatus())
+                                .description("Heart Rate is " + vitals.getHeartRate() + " bpm")
+                                .severity(
+                                        "CRITICAL".equalsIgnoreCase(vitals.getHeartRateStatus()) ? "CRITICAL" : "HIGH")
+                                .currentValue(vitals.getHeartRate() + " bpm").normalRange("60-100 bpm")
+                                .recordedAt(vitals.getMeasurementDateTime()).build());
+                    }
+
+                    // -- Blood Pressure --
+                    if ("CRITICAL".equalsIgnoreCase(vitals.getPressureStatus())
+                            || "BAD".equalsIgnoreCase(vitals.getPressureStatus())) {
+                        String bpVal = vitals.getBloodPressureSystolic() + "/"
+                                + (vitals.getBloodPressureDiastolic() != null ? vitals.getBloodPressureDiastolic()
+                                        : "?")
+                                + " mmHg";
+                        alerts.add(CriticalAlertDTO.builder()
+                                .patientId(patient.getId()).patientName(patient.getName()).room(roomVal)
+                                .alertTitle("Blood Pressure Alert: " + vitals.getPressureStatus())
+                                .description("Blood Pressure is " + bpVal)
+                                .severity("CRITICAL".equalsIgnoreCase(vitals.getPressureStatus()) ? "CRITICAL" : "HIGH")
+                                .currentValue(bpVal).normalRange("90-120/60-80 mmHg")
+                                .recordedAt(vitals.getMeasurementDateTime()).build());
+                    }
+
+                    // -- Temperature --
+                    if ("CRITICAL".equalsIgnoreCase(vitals.getTemperatureStatus())
+                            || "BAD".equalsIgnoreCase(vitals.getTemperatureStatus())) {
+                        alerts.add(CriticalAlertDTO.builder()
+                                .patientId(patient.getId()).patientName(patient.getName()).room(roomVal)
+                                .alertTitle("Temperature Alert: " + vitals.getTemperatureStatus())
+                                .description("Temperature is " + vitals.getTemperature() + " °C")
+                                .severity("CRITICAL".equalsIgnoreCase(vitals.getTemperatureStatus()) ? "CRITICAL"
+                                        : "HIGH")
+                                .currentValue(vitals.getTemperature() + " °C").normalRange("36.1-37.2°C")
+                                .recordedAt(vitals.getMeasurementDateTime()).build());
+                    }
+                } else if (vitals.getTriageLevel() == null) {
+                    // Fallback for old data without AI statuses
+                    if ("CRITICAL".equals(overallRisk) || "HIGH".equals(overallRisk)) {
+                        alerts.add(CriticalAlertDTO.builder()
+                                .patientId(patient.getId()).patientName(patient.getName()).room(roomVal)
+                                .alertTitle("Abnormal Vitals Detected")
+                                .description("Legacy fallback: Vitals triggered high risk.")
+                                .severity(overallRisk)
+                                .currentValue("Check Vitals Tab").normalRange("N/A")
+                                .recordedAt(vitals.getMeasurementDateTime()).build());
+                    }
+                }
+            } // End if vitals != null
+
+            // ============================================
+            // 2. ECG Alerts
+            // ============================================
+            com.example.mainservice.entity.ECGReading ecg = ecgReadingRepository
+                    .findFirstByPatientIdOrderByRecordedAtDesc(patient.getId());
+            if (ecg != null && !"Normal".equalsIgnoreCase(ecg.getPrediction())) {
+                String severity = "CRITICAL";
+                if ("Abnormal".equalsIgnoreCase(ecg.getStatus())
+                        || "Premature Ventricular Contraction".equalsIgnoreCase(ecg.getPrediction())) {
+                    severity = "HIGH";
+                }
+
+                alerts.add(CriticalAlertDTO.builder()
+                        .patientId(patient.getId())
+                        .patientName(patient.getName())
+                        .room(roomVal) // Borrow room from vitals if available
+                        .alertTitle("ECG Alert: " + ecg.getPrediction())
+                        .description(ecg.getRationale() != null ? ecg.getRationale() : "Abnormal ECG pattern detected.")
+                        .severity(severity)
+                        .currentValue("Confidence: " + String.format("%.1f", ecg.getProbability() * 100) + "%")
+                        .normalRange("Normal Sinus Rhythm")
+                        .recordedAt(ecg.getRecordedAt())
+                        .build());
+            }
+        } // End of Patient loop Here
+
+        // Sort: CRITICAL first, then HIGH, then MEDIUM
+        alerts.sort((a, b) -> {
+            int sevA = "CRITICAL".equals(a.getSeverity()) ? 3 : "HIGH".equals(a.getSeverity()) ? 2 : 1;
+            int sevB = "CRITICAL".equals(b.getSeverity()) ? 3 : "HIGH".equals(b.getSeverity()) ? 2 : 1;
+            if (sevA != sevB)
+                return sevB - sevA;
+            if (a.getRecordedAt() != null && b.getRecordedAt() != null)
+                return b.getRecordedAt().compareTo(a.getRecordedAt());
+            return 0;
+        });
+
+        return alerts;
     }
 
     /**

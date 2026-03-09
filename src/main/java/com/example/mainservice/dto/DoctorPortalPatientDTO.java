@@ -1,6 +1,7 @@
 package com.example.mainservice.dto;
 
 import lombok.*;
+import java.time.LocalDate;
 
 /**
  * DTO for Doctor Portal - displays patient overview with vital signs.
@@ -30,4 +31,11 @@ public class DoctorPortalPatientDTO {
     private String bloodType;
     private String contactNo;
     private String medicalConditions;
+
+    // Demographics
+    private String city;
+    private String district;
+    private String address;
+    private String gender;
+    private LocalDate dateOfBirth;
 }

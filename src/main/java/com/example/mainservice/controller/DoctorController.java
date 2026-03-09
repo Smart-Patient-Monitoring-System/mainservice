@@ -1,8 +1,16 @@
 package com.example.mainservice.controller;
 
+import com.example.mainservice.dto.CriticalAlertDTO;
 import com.example.mainservice.dto.DoctorDTO;
 import com.example.mainservice.dto.DoctorPortalPatientDTO;
+import com.example.mainservice.dto.ECGReadingDTO;
 import com.example.mainservice.entity.Doctor;
+import com.example.mainservice.entity.ECGReading;
+import com.example.mainservice.entity.EmergencyAlert;
+import com.example.mainservice.entity.Patient;
+import com.example.mainservice.repository.ECGReadingRepository;
+import com.example.mainservice.repository.EmergencyAlertRepository;
+import com.example.mainservice.repository.PatientRepo;
 import com.example.mainservice.service.DoctorService;
 import jakarta.validation.Valid;
 import lombok.AllArgsConstructor;
@@ -26,6 +34,15 @@ import java.util.Map;
 public class DoctorController {
     @Autowired
     private DoctorService doctorservice;
+
+    @Autowired
+    private PatientRepo patientRepo;
+
+    @Autowired
+    private EmergencyAlertRepository emergencyAlertRepository;
+
+    @Autowired
+    private ECGReadingRepository ecgReadingRepository;
 
     @PostMapping("/create")
     public ResponseEntity<?> createDoctor(@Valid @RequestBody DoctorDTO doctorDto) {
@@ -119,6 +136,97 @@ public class DoctorController {
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(new ErrorResponse("Error fetching patients: " + e.getMessage()));
+        }
+    }
+
+    /**
+     * Doctor Portal: Get emergency alerts for all patients assigned to a doctor.
+     *
+     * @param doctorId The doctor's ID
+     * @return List of emergency alerts for the doctor's assigned patients
+     */
+    @GetMapping("/alerts/{doctorId}")
+    public ResponseEntity<?> getAlertsForDoctor(@PathVariable Long doctorId) {
+        try {
+            Doctor doctor = doctorservice.getDoctorById(doctorId);
+            if (doctor == null) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                        .body(new ErrorResponse("Doctor not found"));
+            }
+
+            // Get all patients assigned to this doctor
+            List<Patient> assignedPatients = patientRepo.findByAssignedDoctorId(doctorId);
+
+            // Collect alerts for all assigned patients
+            List<EmergencyAlert> alerts = assignedPatients.stream()
+                    .flatMap(patient -> emergencyAlertRepository.findByUserId(patient.getId()).stream())
+                    .sorted((a, b) -> {
+                        if (a.getCreatedAt() == null || b.getCreatedAt() == null)
+                            return 0;
+                        return b.getCreatedAt().compareTo(a.getCreatedAt());
+                    })
+                    .toList();
+
+            return ResponseEntity.ok(alerts);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new ErrorResponse("Error fetching alerts: " + e.getMessage()));
+        }
+    }
+
+    /**
+     * Doctor Portal: Get real-time critical alerts based on patients' abnormal
+     * vital signs.
+     * Each abnormal vital (HR, SpO2, Temp, BP) generates a separate alert.
+     *
+     * @param doctorId The doctor's ID
+     * @return List of critical alerts sorted by severity
+     */
+    @GetMapping("/critical-alerts/{doctorId}")
+    public ResponseEntity<?> getCriticalAlertsByDoctorId(@PathVariable Long doctorId) {
+        try {
+            Doctor doctor = doctorservice.getDoctorById(doctorId);
+            if (doctor == null) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                        .body(new ErrorResponse("Doctor not found"));
+            }
+
+            List<CriticalAlertDTO> alerts = doctorservice.getCriticalAlerts(doctorId);
+            return ResponseEntity.ok(alerts);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new ErrorResponse("Error fetching critical alerts: " + e.getMessage()));
+        }
+    }
+
+    /**
+     * Doctor Portal: Save an ECG Reading from VitalReports-AI directly to the
+     * database.
+     */
+    @PostMapping("/ecg/save")
+    public ResponseEntity<?> saveECGReading(@RequestBody ECGReadingDTO dto) {
+        try {
+            Patient patient = patientRepo.findById(dto.getPatientId())
+                    .orElseThrow(() -> new RuntimeException("Patient not found"));
+
+            ECGReading reading = ECGReading.builder()
+                    .patient(patient)
+                    .prediction(dto.getPrediction())
+                    .probability(dto.getProbability())
+                    .meanHR(dto.getMeanHR())
+                    .sdnn(dto.getSdnn())
+                    .rmssd(dto.getRmssd())
+                    .beats(dto.getBeats())
+                    .status(dto.getStatus())
+                    .rationale(dto.getRationale())
+                    .waveformJson(dto.getWaveformJson())
+                    .build();
+
+            ecgReadingRepository.save(reading);
+            return ResponseEntity.ok(Map.of("message", "ECG reading saved successfully"));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", e.getMessage()));
         }
     }
 
