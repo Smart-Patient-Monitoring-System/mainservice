@@ -11,4 +11,6 @@ public interface ECGReadingRepository extends JpaRepository<ECGReading, Long> {
     List<ECGReading> findByPatientIdOrderByRecordedAtDesc(Long patientId);
 
     ECGReading findFirstByPatientIdOrderByRecordedAtDesc(Long patientId);
+
+    List<ECGReading> findByPatient_AssignedDoctorIdOrderByRecordedAtDesc(Long doctorId);
 }

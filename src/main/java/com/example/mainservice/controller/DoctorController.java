@@ -200,14 +200,57 @@ public class DoctorController {
     }
 
     /**
+     * Doctor Portal: Get ECG history for all patients assigned to a doctor.
+     *
+     * @param doctorId The doctor's ID
+     * @return List of historical ECG readings
+     */
+    @GetMapping("/{doctorId}/patients/ecg-history")
+    public ResponseEntity<?> getDoctorPatientsECGHistory(@PathVariable Long doctorId) {
+        try {
+            Doctor doctor = doctorservice.getDoctorById(doctorId);
+            if (doctor == null) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                        .body(new ErrorResponse("Doctor not found"));
+            }
+
+            List<com.example.mainservice.entity.ECGReading> history = doctorservice.getDoctorPatientsECGHistory(doctorId);
+            List<ECGReadingDTO> dtoList = history.stream().map(h -> ECGReadingDTO.builder()
+                    .id(h.getId())
+                    .patientId(h.getPatient().getId())
+                    .patientName(h.getPatient().getName())
+                    .prediction(h.getPrediction())
+                    .probability(h.getProbability())
+                    .meanHR(h.getMeanHR())
+                    .sdnn(h.getSdnn())
+                    .rmssd(h.getRmssd())
+                    .beats(h.getBeats())
+                    .status(h.getStatus())
+                    .rationale(h.getRationale())
+                    .waveformJson(h.getWaveformJson())
+                    .recordedAt(h.getRecordedAt())
+                    .build()).collect(java.util.stream.Collectors.toList());
+
+            return ResponseEntity.ok(dtoList);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new ErrorResponse("Error fetching ECG history: " + e.getMessage()));
+        }
+    }
+
+    /**
      * Doctor Portal: Save an ECG Reading from VitalReports-AI directly to the
      * database.
      */
     @PostMapping("/ecg/save")
     public ResponseEntity<?> saveECGReading(@RequestBody ECGReadingDTO dto) {
         try {
+            System.out.println("[ECG-SAVE] Received save request — patientId=" + dto.getPatientId()
+                    + ", prediction='" + dto.getPrediction() + "', status='" + dto.getStatus()
+                    + "', probability=" + dto.getProbability());
+
             Patient patient = patientRepo.findById(dto.getPatientId())
-                    .orElseThrow(() -> new RuntimeException("Patient not found"));
+                    .orElseThrow(() -> new RuntimeException("Patient not found with id: " + dto.getPatientId()));
 
             ECGReading reading = ECGReading.builder()
                     .patient(patient)
@@ -222,9 +265,16 @@ public class DoctorController {
                     .waveformJson(dto.getWaveformJson())
                     .build();
 
-            ecgReadingRepository.save(reading);
-            return ResponseEntity.ok(Map.of("message", "ECG reading saved successfully"));
+            ECGReading saved = ecgReadingRepository.save(reading);
+            System.out.println("[ECG-SAVE] SUCCESS — Saved ECG reading id=" + saved.getId()
+                    + " for patient " + patient.getName() + " (id=" + patient.getId() + ")"
+                    + ", prediction='" + saved.getPrediction() + "'"
+                    + ", recordedAt=" + saved.getRecordedAt());
+
+            return ResponseEntity.ok(Map.of("message", "ECG reading saved successfully", "id", saved.getId()));
         } catch (Exception e) {
+            System.err.println("[ECG-SAVE] FAILED: " + e.getMessage());
+            e.printStackTrace();
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(Map.of("error", e.getMessage()));
         }

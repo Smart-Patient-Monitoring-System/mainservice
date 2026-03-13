@@ -37,7 +37,8 @@ public class VitalReportsClient {
             VitalAssessmentResponseDTO fallback = new VitalAssessmentResponseDTO();
             fallback.setTriageLevel("UNKNOWN");
             fallback.setVitalStatus(
-                    new VitalAssessmentResponseDTO.VitalStatusDTO("UNKNOWN", "UNKNOWN", "UNKNOWN", "UNKNOWN"));
+                    new VitalAssessmentResponseDTO.VitalStatusDTO("UNKNOWN", "UNKNOWN", "UNKNOWN", "UNKNOWN",
+                            "UNKNOWN"));
             return fallback;
         }
     }

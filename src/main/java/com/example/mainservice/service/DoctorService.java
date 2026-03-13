@@ -248,6 +248,7 @@ public class DoctorService {
      */
     public List<CriticalAlertDTO> getCriticalAlerts(Long doctorId) {
         List<Patient> patients = patientRepo.findByAssignedDoctorId(doctorId);
+
         java.util.ArrayList<CriticalAlertDTO> alerts = new java.util.ArrayList<>();
 
         for (Patient patient : patients) {
@@ -264,7 +265,8 @@ public class DoctorService {
                 String overallRisk = vitals.getTriageLevel() != null ? vitals.getTriageLevel()
                         : calculateRiskLevel(vitals);
 
-                if ("CRITICAL".equalsIgnoreCase(overallRisk) || "HIGH".equalsIgnoreCase(overallRisk)
+                if ("EMERGENCY".equalsIgnoreCase(overallRisk) || "CRITICAL".equalsIgnoreCase(overallRisk)
+                        || "HIGH".equalsIgnoreCase(overallRisk) || "MEDIUM".equalsIgnoreCase(overallRisk)
                         || "BAD".equalsIgnoreCase(overallRisk)) {
 
                     // -- SpO2 --
@@ -339,19 +341,33 @@ public class DoctorService {
             // ============================================
             com.example.mainservice.entity.ECGReading ecg = ecgReadingRepository
                     .findFirstByPatientIdOrderByRecordedAtDesc(patient.getId());
-            if (ecg != null && !"Normal".equalsIgnoreCase(ecg.getPrediction())) {
+            
+            // Debug logging to help identify why alerts might not be showing
+            if (ecg != null) {
+                System.out.println("[ECG-DEBUG] Patient " + patient.getId() + " (" + patient.getName()
+                        + ") - Latest ECG: prediction='" + ecg.getPrediction()
+                        + "', status='" + ecg.getStatus() + "', recordedAt=" + ecg.getRecordedAt());
+            }
+
+            if (ecg != null && ecg.getPrediction() != null && !"Normal".equalsIgnoreCase(ecg.getPrediction())) {
+                // Determine severity based on prediction and probability
                 String severity = "CRITICAL";
-                if ("Abnormal".equalsIgnoreCase(ecg.getStatus())
-                        || "Premature Ventricular Contraction".equalsIgnoreCase(ecg.getPrediction())) {
+                String prediction = ecg.getPrediction();
+                
+                // Downgrade to HIGH for general abnormalities or specific common arrhythmias
+                if ("Abnormal".equalsIgnoreCase(prediction) || 
+                    "Abnormal".equalsIgnoreCase(ecg.getStatus()) ||
+                    prediction.toLowerCase().contains("premature") ||
+                    ecg.getProbability() < 0.70) {
                     severity = "HIGH";
                 }
 
                 alerts.add(CriticalAlertDTO.builder()
                         .patientId(patient.getId())
                         .patientName(patient.getName())
-                        .room(roomVal) // Borrow room from vitals if available
-                        .alertTitle("ECG Alert: " + ecg.getPrediction())
-                        .description(ecg.getRationale() != null ? ecg.getRationale() : "Abnormal ECG pattern detected.")
+                        .room(roomVal != null ? roomVal : "Room Unknown")
+                        .alertTitle("ECG Alert: " + prediction)
+                        .description(ecg.getRationale() != null ? ecg.getRationale() : "Abnormal ECG pattern detected by AI.")
                         .severity(severity)
                         .currentValue("Confidence: " + String.format("%.1f", ecg.getProbability() * 100) + "%")
                         .normalRange("Normal Sinus Rhythm")
@@ -390,5 +406,12 @@ public class DoctorService {
                 .orElseGet(() ->
                 // Fallback: try by email if username lookup fails
                 doctorrepo.findByEmail(usernameOrEmail).orElse(null));
+    }
+
+    /**
+     * Get ECG history for all patients assigned to a doctor
+     */
+    public List<com.example.mainservice.entity.ECGReading> getDoctorPatientsECGHistory(Long doctorId) {
+        return ecgReadingRepository.findByPatient_AssignedDoctorIdOrderByRecordedAtDesc(doctorId);
     }
 }

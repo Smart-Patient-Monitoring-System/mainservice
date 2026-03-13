@@ -108,6 +108,7 @@ public class SecurityConfig {
                         .permitAll()
 
                         // -------- DOCTOR (logged in) --------
+                        .requestMatchers("/api/doctor-notes/**").authenticated()
                         .requestMatchers("/api/doctor/**").hasRole("DOCTOR")
 
                         // -------- PATIENT (logged in) --------

@@ -13,6 +13,7 @@ import java.time.LocalDateTime;
 public class ECGReadingDTO {
     private Long id;
     private Long patientId;
+    private String patientName;
     private String prediction;
     private double probability;
     private int meanHR;

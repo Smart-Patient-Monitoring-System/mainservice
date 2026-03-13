@@ -21,5 +21,6 @@ public class VitalAssessmentResponseDTO {
         private String pressureStatus;
         private String heartRateStatus;
         private String temperatureStatus;
+        private String bloodSugarStatus;
     }
 }

@@ -14,5 +14,6 @@ public class VitalReadingRequestDTO {
     private int systolicBP;
     private int heartRate;
     private double temperature;
+    private double bloodSugar;
     private Long timestamp;
 }

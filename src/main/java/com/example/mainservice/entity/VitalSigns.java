@@ -67,4 +67,5 @@ public class VitalSigns {
     private String pressureStatus;
     private String heartRateStatus;
     private String temperatureStatus;
+    private String bloodSugarStatus;
 }
