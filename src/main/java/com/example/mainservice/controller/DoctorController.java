@@ -42,10 +42,11 @@ public class DoctorController {
     }
 
     @GetMapping("/get")
-    public List<DoctorDTO> getAllDocters() {
+    public List<DoctorDTO> getAllDoctors(){
 
         return doctorservice.getDetails();
     }
+
 
     @DeleteMapping("/delete/{Id}")
     public String deleteDoctorByID(@PathVariable Long Id) {
