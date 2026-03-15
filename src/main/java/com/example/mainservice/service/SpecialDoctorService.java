@@ -18,7 +18,7 @@ public class SpecialDoctorService {
         this.repository = repository;
     }
 
-    // Get all doctors fro databse Get all doctors from database  Convert each entity to DTO Return list
+    // Get all doctors for databse Get all doctors from database  Convert each entity to DTO Return list
     public List<SpecialDoctorDTO> getAllDoctors() {
         return repository.findAll().stream()
                 .map(this::mapToDTO)
