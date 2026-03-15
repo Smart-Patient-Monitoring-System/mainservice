@@ -15,6 +15,7 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/vital-signs")
+@CrossOrigin(origins = "http://localhost:5173")
 // 
 public class VitalSignsController {
 

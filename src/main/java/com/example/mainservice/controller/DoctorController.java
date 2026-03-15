@@ -31,6 +31,7 @@ import java.util.Map;
 @Controller // initialize as a controller
 @RestController // initialize rest API s
 @RequestMapping("/api/doctor")
+@CrossOrigin(origins = "http://localhost:5173")
 public class DoctorController {
     @Autowired
     private DoctorService doctorservice;

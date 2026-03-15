@@ -24,6 +24,7 @@ import com.example.mainservice.repository.ECGReadingRepository;
 @Controller
 @RestController
 @RequestMapping("/api/patient")
+@CrossOrigin(origins = "http://localhost:5173")
 public class PatientController {
     @Autowired
     private PatientService patientservice;
