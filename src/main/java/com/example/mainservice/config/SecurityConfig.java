@@ -42,8 +42,7 @@ public class SecurityConfig {
 
     public SecurityConfig(
             @Lazy UserDetailsService userDetailsService,
-            @Lazy JwtAuthenticationFilter jwtAuthenticationFilter
-    ) {
+            @Lazy JwtAuthenticationFilter jwtAuthenticationFilter) {
         this.userDetailsService = userDetailsService;
         this.jwtAuthenticationFilter = jwtAuthenticationFilter;
     }
@@ -87,7 +86,7 @@ public class SecurityConfig {
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
                 .csrf(AbstractHttpConfigurer::disable)
-                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+                .cors(AbstractHttpConfigurer::disable)
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 
                 .authorizeHttpRequests(auth -> auth
@@ -109,26 +108,35 @@ public class SecurityConfig {
 
                         // Booking UI needs these even before login (or at least for PATIENT)
                         .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/doctors/**").permitAll()
-                        .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/appointment-types/**").permitAll()
-                        .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/availability/doctor/**").permitAll()
+                        .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/appointment-types/**")
+                        .permitAll()
+                        .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/availability/doctor/**")
+                        .permitAll()
+
+                        // -------- DOCTOR (logged in) --------
+                        .requestMatchers("/api/doctor-notes/**").authenticated()
+                        .requestMatchers("/api/doctor/**").hasRole("DOCTOR")
 
                         // -------- PATIENT (logged in) --------
-                        .requestMatchers(org.springframework.http.HttpMethod.POST, "/api/appointments/book").hasAnyRole("PATIENT","ADMIN")
-                        .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/appointments/user/**").hasAnyRole("PATIENT","ADMIN")
+                        .requestMatchers("/api/vital-signs/**").hasAnyRole("PATIENT", "ADMIN", "DOCTOR")
+                        .requestMatchers(org.springframework.http.HttpMethod.POST, "/api/appointments/book")
+                        .hasAnyRole("PATIENT", "ADMIN")
+                        .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/appointments/user/**")
+                        .hasAnyRole("PATIENT", "ADMIN")
 
                         // -------- ADMIN ONLY --------
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
                         .requestMatchers(org.springframework.http.HttpMethod.POST, "/api/doctors/**").hasRole("ADMIN")
                         .requestMatchers(org.springframework.http.HttpMethod.PUT, "/api/doctors/**").hasRole("ADMIN")
                         .requestMatchers(org.springframework.http.HttpMethod.DELETE, "/api/doctors/**").hasRole("ADMIN")
-                        .requestMatchers(org.springframework.http.HttpMethod.POST, "/api/appointment-types/**").hasRole("ADMIN")
+                        .requestMatchers(org.springframework.http.HttpMethod.POST, "/api/appointment-types/**")
+                        .hasRole("ADMIN")
 
                         // Chat
                         .requestMatchers("/api/chat/**").authenticated()
 
                         // Everything else MUST be authenticated
-                        .anyRequest().authenticated()
-                )
+                        .anyRequest().authenticated())
 
                 // JWT filter before Spring's default auth filter
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
