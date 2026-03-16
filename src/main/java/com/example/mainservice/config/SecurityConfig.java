@@ -98,9 +98,9 @@ public class SecurityConfig {
                         .requestMatchers("/api/pendingdoctor/**").permitAll()
                         .requestMatchers("/api/dashboard/**").permitAll()
 
-
                         .requestMatchers(HttpMethod.GET, "/api/payments/pay/**").permitAll()
                         .requestMatchers("/api/payments/notify").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/payments/dev-success-all").permitAll()
                         .requestMatchers("/ws/**", "/ws").permitAll()
 
                         .requestMatchers("/error").permitAll()
@@ -112,6 +112,7 @@ public class SecurityConfig {
                         .permitAll()
                         .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/availability/doctor/**")
                         .permitAll()
+                        .requestMatchers("/api/availability/fix-db").permitAll()
 
                         // -------- DOCTOR (logged in) --------
                         .requestMatchers("/api/doctor-notes/**").authenticated()
