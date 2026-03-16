@@ -5,22 +5,24 @@ public class AdminDashboardDTO{
     private long specialdoctorCount;
     private long patientCount;
 
-    public AdminDashboardDTO(long doctorCount, long specialdoctorCount, long patientCount) {
+    public AdminDashboardDTO(long doctorCount, long patientCount, long specialdoctorCount) {
         this.doctorCount = doctorCount;
-        this.specialdoctorCount = specialdoctorCount;
+
         this.patientCount = patientCount;
+
+        this.specialdoctorCount = specialdoctorCount;
     }
 
     public long getDoctorCount() {
         return doctorCount;
     }
 
-    public long getSpecialDoctorCount() {
-        return specialdoctorCount;
-    }
-
     public long getPatientCount() {
         return patientCount;
+    }
+
+    public long getSpecialDoctorCount() {
+        return specialdoctorCount;
     }
 
 

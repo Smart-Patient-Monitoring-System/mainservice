@@ -17,6 +17,8 @@ public class AdminDashboardService {
     @Autowired
     private PatientRepo patientRepo;
 
+
+
     public long getDoctorCount() {
         return doctorRepo.count();
     }
@@ -25,7 +27,7 @@ public class AdminDashboardService {
         return specialdoctorRepo.count();
     }
 
-    public long getPatientCount() {
-        return patientRepo.count();
-    }
+    public long getPatientCount() {return patientRepo.count(); }
+
+
 }

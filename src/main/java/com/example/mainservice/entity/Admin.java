@@ -28,6 +28,10 @@ public class Admin {
     @Column(nullable = false)
     private String name;
 
+    public void setName(String name) {
+        this.name = name;
+    }
+
     public Admin() {
     }
 }

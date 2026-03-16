@@ -33,7 +33,7 @@ public class SpecialDoctorController {
     }
 
     // Add a new doctor
-    @PostMapping
+    @PostMapping()
     public SpecialDoctorDTO addDoctor(@RequestBody SpecialDoctorDTO doctorDTO) {
         return doctorService.addDoctor(doctorDTO);
     }

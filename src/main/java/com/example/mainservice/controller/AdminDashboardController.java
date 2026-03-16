@@ -17,8 +17,8 @@ public class AdminDashboardController {
     public AdminDashboardDTO getCounts() {
 
         long doctorCount = dashboardService.getDoctorCount();
-        long specialdoctorCount = dashboardService.getSpecialDoctorCount();
         long patientCount = dashboardService.getPatientCount();
+        long specialdoctorCount = dashboardService.getSpecialDoctorCount();
 
         return new AdminDashboardDTO(doctorCount, patientCount, specialdoctorCount);
     }
