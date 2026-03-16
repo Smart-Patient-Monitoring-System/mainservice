@@ -11,6 +11,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/doctors")
+@CrossOrigin(origins = "http://localhost:5173")
 public class SpecialDoctorController {
 
     private final SpecialDoctorService doctorService;
@@ -32,7 +33,7 @@ public class SpecialDoctorController {
     }
 
     // Add a new doctor
-    @PostMapping
+    @PostMapping()
     public SpecialDoctorDTO addDoctor(@RequestBody SpecialDoctorDTO doctorDTO) {
         return doctorService.addDoctor(doctorDTO);
     }

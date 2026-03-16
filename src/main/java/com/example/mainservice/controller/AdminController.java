@@ -23,6 +23,7 @@ import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/admin")
+@CrossOrigin(origins = "http://localhost:5173")
 public class AdminController {
 
     @Autowired
@@ -112,6 +113,12 @@ public class AdminController {
         }
     }
 
+    @GetMapping("/name")
+    public String getAdminName() {
+        Admin admin = adminRepo.findById(1L).orElse(null);
+        return admin.getName();
+    }
+
     @GetMapping("/list")
     public ResponseEntity<?> getAllAdmins() {
         try {
@@ -139,6 +146,8 @@ public class AdminController {
                     .body(new ErrorResponse("An error occurred: " + e.getMessage()));
         }
     }
+
+
 
     @PutMapping("/{id}")
     public ResponseEntity<?> updateAdmin(@PathVariable Long id, @Valid @RequestBody AdminDTO adminDto) {

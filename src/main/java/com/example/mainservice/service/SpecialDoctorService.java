@@ -20,7 +20,6 @@ public class SpecialDoctorService {
         this.legacyRepo = legacyRepo;
     }
 
-    // Get all doctors from the main `doctor` table
     public List<SpecialDoctorDTO> getAllDoctors() {
         return doctorRepo.findAll().stream()
                 .map(this::mapToDTO)

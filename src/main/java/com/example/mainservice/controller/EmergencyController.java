@@ -16,6 +16,7 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/emergency")
+@CrossOrigin(origins = "http://localhost:5173")
 @RequiredArgsConstructor
 //
 public class EmergencyController {

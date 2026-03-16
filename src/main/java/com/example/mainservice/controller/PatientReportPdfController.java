@@ -6,6 +6,7 @@ import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/patients/{patientId}")
+@CrossOrigin(origins = "http://localhost:5173")
 public class PatientReportPdfController {
 
     private final PatientReportPdfService pdfService;

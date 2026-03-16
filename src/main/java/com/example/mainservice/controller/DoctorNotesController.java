@@ -20,6 +20,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 @RestController
 @RequestMapping("/api/doctor-notes")
+@CrossOrigin(origins = "http://localhost:5173")
 @RequiredArgsConstructor
 public class DoctorNotesController {
 
